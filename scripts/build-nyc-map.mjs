@@ -27,8 +27,15 @@ const WIDTH = 900;
 const HEIGHT = 1300;
 const PRECISION = 1;
 
-/** Measured off Fifth Avenue: the avenues bear 27.64 degrees east of north. */
-const GRID = (27.64 * Math.PI) / 180;
+/**
+ * The grid's bearing, fitted to Central Park: the angle at which that polygon
+ * -- a real rectangle from the city's own data -- comes out narrowest. That
+ * gives 29.10 degrees, the textbook figure for the Commissioners' grid.
+ * Measuring it off two points on Fifth Avenue gave 27.64, and the 1.5 degrees
+ * of error compounded over the park's four kilometres until the park sat
+ * visibly askew against the blocks around it.
+ */
+const GRID = (29.1 * Math.PI) / 180;
 const COS = Math.cos(GRID);
 const SIN = Math.sin(GRID);
 const M_LON = 111320 * Math.cos((40.75 * Math.PI) / 180);
@@ -69,54 +76,44 @@ function latLonBox([latA, lonA], [latB, lonB]) {
 const ORIGIN = rot([-73.9822, 40.7532]);
 const U = {
   farWest: -3000,
-  tenth: -1331,
-  ninth: -1067,
-  eighth: -771,
-  seventh: -510,
-  sixth: -259,
+  tenth: -1336,
+  ninth: -1071,
+  eighth: -773,
+  seventh: -512,
+  sixth: -260,
   fifth: 0,
   madison: 200,
-  park: 440,
-  lex: 640,
-  third: 886,
-  second: 1101,
-  first: 1307,
+  park: 438,
+  lex: 638,
+  third: 882,
+  second: 1098,
+  first: 1303,
   farEast: 3000,
-  // Downtown runs on its own angle, so these are cuts, not avenues.
-  westSide: -450,
-  broadway: 150,
-  bowery: 1100,
-  lafayette: 481,
-  villageWest: -380,
-  parkSouth: 350,
-  lexSouth: 900,
-  eighthSouth: -900,
-  seventhSouth: -300,
-  harlemWest: -700,
-  fifthNorth: 300,
-};
-const V = {
+  // Downtown runs on its own angle, so these are cuts rather than avenues.
+  bpcEast: 100,
+  broadway: 400,
+  lafayette: 570,
+  bowery: 845,
+};const V = {
   south: -7000,
   chambers: -4850,
-  canal: -4125,
-  houston: -3234,
-  astor: -2685,
-  fourteenth: -2019,
-  twentyThird: -1479,
+  canal: -4050,
+  houston: -3222,
+  astor: -2671,
+  fourteenth: -2017,
   thirtyFourth: -607,
-  fortySecond: 96,
-  fiftyNinth: 1430,
-  seventySecond: 2703,
-  seventyNinth: 3396,
-  ninetySixth: 4620,
-  oneTenth: 5491,
-  oneTwentyFifth: 6590,
-  oneFortyFifth: 8351,
-  oneEightyFirst: 11348,
-  dyckman: 13062,
+  fortySecond: 90,
+  fiftyNinth: 1431,
+  seventySecond: 2709,
+  seventyNinth: 3403,
+  ninetySixth: 4629,
+  oneTenth: 5497,
+  oneTwentyFifth: 6597,
+  oneFortyFifth: 8348,
+  oneEightyFirst: 11309,
+  dyckman: 13017,
   north: 16000,
 };
-
 /** A block bounded by two cross-streets and two avenues, by name. */
 function gridBlock(south, north, west, east) {
   const u0 = ORIGIN[0] + U[west];
@@ -139,46 +136,47 @@ function gridBlock(south, north, west, east) {
  */
 const MANHATTAN = [
   // Downtown
-  ["battery-park-city", "south", "chambers", "farWest", "westSide"],
-  ["financial-district", "south", "chambers", "westSide", "farEast"],
+  ["battery-park-city", "south", "chambers", "farWest", "bpcEast"],
+  ["financial-district", "south", "chambers", "bpcEast", "farEast"],
   ["tribeca", "chambers", "canal", "farWest", "broadway"],
   ["chinatown", "chambers", "canal", "broadway", "farEast"],
-  ["hudson-square", "canal", "houston", "farWest", "westSide"],
-  ["soho", "canal", "houston", "westSide", "lafayette"],
+  ["hudson-square", "canal", "houston", "farWest", "sixth"],
+  ["soho", "canal", "houston", "sixth", "lafayette"],
   ["little-italy", "canal", "houston", "lafayette", "bowery"],
   ["lower-east-side", "canal", "houston", "bowery", "farEast"],
   ["noho", "houston", "astor", "broadway", "bowery"],
-  ["west-village", "houston", "fourteenth", "farWest", "villageWest"],
-  ["greenwich-village", "houston", "fourteenth", "villageWest", "broadway"],
+  ["west-village", "houston", "fourteenth", "farWest", "seventh"],
+  ["greenwich-village", "houston", "fourteenth", "seventh", "broadway"],
   ["east-village", "houston", "fourteenth", "broadway", "farEast"],
   // Midtown
-  ["chelsea", "fourteenth", "thirtyFourth", "farWest", "villageWest"],
-  ["flatiron", "fourteenth", "thirtyFourth", "villageWest", "parkSouth"],
-  ["gramercy", "fourteenth", "thirtyFourth", "parkSouth", "lexSouth"],
-  ["kips-bay", "fourteenth", "thirtyFourth", "lexSouth", "farEast"],
-  ["hudson-yards", "thirtyFourth", "fortySecond", "farWest", "eighthSouth"],
-  ["garment-district", "thirtyFourth", "fortySecond", "eighthSouth", "parkSouth"],
-  ["murray-hill", "thirtyFourth", "fortySecond", "parkSouth", "farEast"],
-  ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "eighthSouth"],
-  ["theater-district", "fortySecond", "fiftyNinth", "eighthSouth", "seventhSouth"],
-  ["midtown-east", "fortySecond", "fiftyNinth", "seventhSouth", "farEast"],
-  // Uptown -- Central Park is cut back out of these below
-  ["lincoln-square", "fiftyNinth", "seventySecond", "farWest", "seventhSouth"],
-  ["lenox-hill", "fiftyNinth", "seventyNinth", "fifthNorth", "farEast"],
-  ["upper-west-side", "seventySecond", "ninetySixth", "farWest", "seventhSouth"],
-  ["carnegie-hill", "seventyNinth", "ninetySixth", "fifthNorth", "lexSouth"],
-  ["yorkville", "seventyNinth", "ninetySixth", "lexSouth", "farEast"],
-  ["manhattan-valley", "ninetySixth", "oneTenth", "farWest", "seventhSouth"],
-  ["east-harlem", "ninetySixth", "oneTwentyFifth", "fifthNorth", "farEast"],
+  ["chelsea", "fourteenth", "thirtyFourth", "farWest", "sixth"],
+  ["flatiron", "fourteenth", "thirtyFourth", "sixth", "park"],
+  ["gramercy", "fourteenth", "thirtyFourth", "park", "third"],
+  ["kips-bay", "fourteenth", "thirtyFourth", "third", "farEast"],
+  ["hudson-yards", "thirtyFourth", "fortySecond", "farWest", "ninth"],
+  ["garment-district", "thirtyFourth", "fortySecond", "ninth", "fifth"],
+  ["murray-hill", "thirtyFourth", "fortySecond", "fifth", "farEast"],
+  ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "ninth"],
+  ["theater-district", "fortySecond", "fiftyNinth", "ninth", "fifth"],
+  ["midtown-east", "fortySecond", "fiftyNinth", "fifth", "farEast"],
+  // Uptown. The east side starts at Fifth Avenue and the west side runs to
+  // Central Park West, so the park's own edges are the boundary -- leaving a
+  // gap there left a strip of Fifth Avenue claimed by nobody.
+  ["lincoln-square", "fiftyNinth", "seventySecond", "farWest", "seventh"],
+  ["lenox-hill", "fiftyNinth", "seventyNinth", "fifth", "farEast"],
+  ["upper-west-side", "seventySecond", "ninetySixth", "farWest", "seventh"],
+  ["carnegie-hill", "seventyNinth", "ninetySixth", "fifth", "third"],
+  ["yorkville", "seventyNinth", "ninetySixth", "third", "farEast"],
+  ["manhattan-valley", "ninetySixth", "oneTenth", "farWest", "seventh"],
+  ["east-harlem", "ninetySixth", "oneTwentyFifth", "fifth", "farEast"],
   // Harlem and above
-  ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "harlemWest"],
-  ["hamilton-heights", "oneTwentyFifth", "oneFortyFifth", "farWest", "harlemWest"],
-  ["central-harlem", "oneTenth", "oneFortyFifth", "harlemWest", "farEast"],
+  ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "eighth"],
+  ["hamilton-heights", "oneTwentyFifth", "oneFortyFifth", "farWest", "eighth"],
+  ["central-harlem", "oneTenth", "oneFortyFifth", "eighth", "farEast"],
   ["washington-heights", "oneFortyFifth", "oneEightyFirst", "farWest", "farEast"],
   ["fort-george", "oneEightyFirst", "dyckman", "farWest", "farEast"],
   ["inwood", "dyckman", "north", "farWest", "farEast"],
 ];
-
 /**
  * Jersey City's neighbourhoods. OpenStreetMap has these only as points, and
  * they are not official boundaries, so these boxes are an approximation --
@@ -543,6 +541,44 @@ for (let i = 0; i < regions.length; i++) {
   }
 }
 if (clashes.length > 0) throw new Error(`Overlapping areas: ${clashes.join(", ")}`);
+
+// Every piece of Manhattan should belong to some area, or to a park. A gap
+// shows up as grey silhouette where a neighborhood ought to be -- which is how
+// the strip of Fifth Avenue beside Central Park went missing.
+{
+  const manhattanRegions = MANHATTAN.map(([id]) => id);
+  const covered = regions
+    .filter(([id]) => manhattanRegions.includes(id))
+    .map(([, geom]) => geom)
+    .reduce((all, geom) => polygonClipping.union(all, geom));
+  const leftover = polygonClipping.difference(manhattanIsland, covered, park);
+  const areaOf = (multi) =>
+    multi.reduce((sum, poly) => {
+      const ring = poly[0];
+      let a = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+      }
+      return sum + Math.abs(a / 2);
+    }, 0);
+  const share = areaOf(leftover) / areaOf(manhattanIsland);
+  if (share > 0.004) {
+    const spots = leftover
+      .map((poly) => poly[0])
+      .map((ring) => {
+        const xs = ring.map(([x]) => x);
+        const ys = ring.map(([, y]) => y);
+        return `${((Math.min(...ys) + Math.max(...ys)) / 2).toFixed(4)},${(
+          (Math.min(...xs) + Math.max(...xs)) / 2
+        ).toFixed(4)}`;
+      })
+      .slice(0, 6);
+    throw new Error(
+      `${(share * 100).toFixed(1)}% of Manhattan belongs to no area. Around: ${spots.join("  ")}`,
+    );
+  }
+  console.log(`Manhattan unclaimed: ${(share * 100).toFixed(2)}%`);
+}
 
 // A Manhattan block must never pick up land across a river: cutting against the
 // wrong landmass is what put Governors Island inside the Financial District.
