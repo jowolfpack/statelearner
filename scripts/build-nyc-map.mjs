@@ -200,11 +200,22 @@ const NJ_SHORELINE = [
   [-74.0215, 40.76],
   [-74.019, 40.77],
   [-74.016, 40.782],
+  // North of Hoboken nothing is asked about, but the Palisades face Upper
+  // Manhattan the whole way up and the map looks cut off without them.
+  [-74.01, 40.792],
+  [-74.002, 40.805],
+  [-73.995, 40.818],
+  [-73.988, 40.83],
+  [-73.98, 40.842],
+  [-73.973, 40.852],
+  [-73.966, 40.864],
+  [-73.958, 40.878],
+  [-73.954, 40.89],
 ];
 
 /** Land west of that shoreline. */
 const NJ_LAND = [
-  [[[-74.09, 40.658], ...NJ_SHORELINE, [-74.016, 40.79], [-74.09, 40.79], [-74.09, 40.658]]],
+  [[[-74.09, 40.658], ...NJ_SHORELINE, [-74.09, 40.895], [-74.09, 40.658]]],
 ];
 
 /** Everything drawn, so far Brooklyn and Queens stay off the map. */
@@ -307,7 +318,9 @@ const njPieces = [hobokenLand, jerseyLand];
 if (polygonClipping.intersection(hobokenLand, jerseyLand).length > 0) {
   throw new Error("Hoboken and Jersey City still overlap");
 }
-const silhouette = polygonClipping.union(nycLand, ...njPieces);
+// The whole Jersey bank is drawn as context, not just the two named areas.
+const njSilhouette = polygonClipping.intersection(NJ_LAND, VIEWPORT);
+const silhouette = polygonClipping.union(nycLand, njSilhouette);
 
 const park = polygonClipping.intersection(
   clean(
