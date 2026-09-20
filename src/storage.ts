@@ -51,9 +51,12 @@ export const settings = {
     write(KEYS.theme, value);
   },
 
-  /** Governs auto-play only; the speaker buttons work either way. */
+  /**
+   * Governs auto-play only; the speaker buttons work either way. Off unless
+   * switched on, so the app never starts talking unasked.
+   */
   soundEnabled(): boolean {
-    return read(KEYS.sound) !== "off";
+    return read(KEYS.sound) === "on";
   },
   setSoundEnabled(value: boolean): void {
     write(KEYS.sound, value ? "on" : "off");

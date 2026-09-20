@@ -47,8 +47,9 @@ the state is the answer.
 ## Pronunciation
 
 Names are read aloud by the browser's built-in speech synthesis — no audio files
-and nothing to download. With **Sound** on, the answer is spoken as soon as it is
-on screen, whether you got it right or were just corrected. Speaker buttons sit
+and nothing to download. **Sound is off by default**; switch it on and the answer
+is spoken as soon as it is on screen, whether you got it right or were just
+corrected. Speaker buttons sit
 next to every word on screen and work whether the switch is on or off; a speaker
 never appears for an answer you have not been shown yet.
 

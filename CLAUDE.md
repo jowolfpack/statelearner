@@ -99,7 +99,8 @@ handles makes it worse, and engines differ between devices.
 `mountSpeaker()` in `main.ts` enforces the same spoiler rule as the map: **a
 speaker button may only ever speak text already on screen**, so the answer gets
 one only once the question has been graded. The Sound switch governs auto-play
-only; the buttons work regardless.
+only, and is **off by default** so the app never talks unasked; the speaker
+buttons work regardless.
 
 **Persistence (`src/storage.ts`)** — direction, theme, map on/off and the set of
 cleared group ids, all wrapped in try/catch because `localStorage` throws in some

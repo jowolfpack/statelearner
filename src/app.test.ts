@@ -329,18 +329,38 @@ describe("pronunciation audio", () => {
     return spokenFor(capitalFor(state));
   }
 
+  /** Auto-play is off by default, so tests that want it must ask. */
+  function setSound(on: boolean): void {
+    const toggle = byId<HTMLInputElement>("sound-toggle");
+    toggle.checked = on;
+    toggle.dispatchEvent(new Event("change"));
+  }
+
   function setDirection(value: string): void {
     const select = byId<HTMLSelectElement>("direction");
     select.value = value;
     select.dispatchEvent(new Event("change"));
   }
 
-  it("offers a Sound switch, on by default", () => {
-    expect(byId<HTMLInputElement>("sound-toggle").checked).toBe(true);
+  it("offers a Sound switch, off by default", () => {
+    expect(byId<HTMLInputElement>("sound-toggle").checked).toBe(false);
     expect(byId("sound-toggle-label").hidden).toBe(false);
   });
 
+  it("says nothing by default until sound is switched on", () => {
+    openFirstGroupAndDrill();
+    const state = byId("prompt").textContent ?? "";
+    answer(capitalFor(state));
+    expect(spoken).toEqual([]);
+  });
+
+  it("remembers the switch being turned on", () => {
+    setSound(true);
+    expect(localStorage.getItem("statelearner:sound")).toBe("on");
+  });
+
   it("speaks the answer you got right", () => {
+    setSound(true);
     openFirstGroupAndDrill();
     const state = byId("prompt").textContent ?? "";
     answer(capitalFor(state));
@@ -348,6 +368,7 @@ describe("pronunciation audio", () => {
   });
 
   it("speaks the correct answer when you get one wrong", () => {
+    setSound(true);
     openFirstGroupAndDrill();
     const state = byId("prompt").textContent ?? "";
     answer("completely wrong");
@@ -355,6 +376,7 @@ describe("pronunciation audio", () => {
   });
 
   it("speaks the answer when you give up", () => {
+    setSound(true);
     openFirstGroupAndDrill();
     const state = byId("prompt").textContent ?? "";
     byId<HTMLButtonElement>("give-up").click();
@@ -362,9 +384,8 @@ describe("pronunciation audio", () => {
   });
 
   it("stays quiet when the switch is off, but the buttons still work", () => {
-    const toggle = byId<HTMLInputElement>("sound-toggle");
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event("change"));
+    setSound(true);
+    setSound(false);
 
     openFirstGroupAndDrill();
     const prompt = byId("prompt").textContent ?? "";
