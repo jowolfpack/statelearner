@@ -1,4 +1,5 @@
 import type { Deck, Group } from "./types";
+import { MAP_VIEWBOX, STATE_PATHS } from "./us-map";
 import table from "./us-states.json";
 
 /** [state, capital, postal code], shared with scripts/build-map.mjs. */
@@ -98,4 +99,5 @@ export const usStatesDeck: Deck = {
   }),
   groups,
   regions,
+  map: { viewBox: MAP_VIEWBOX, paths: STATE_PATHS, label: "Map of the United States" },
 };

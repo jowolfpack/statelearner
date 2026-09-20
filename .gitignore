@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.local
 .DS_Store
+
+# Photos of reference material stay out of the repo.
+reference/

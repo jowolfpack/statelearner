@@ -12,13 +12,14 @@
         <button type="button" class="back" id="back" hidden>&larr; Groups</button>
         <h1 id="title">StateLearner</h1>
         <div class="settings">
+          <label id="deck-label">
+            <span class="sr-only">Deck</span>
+            <select id="deck"></select>
+          </label>
           <label>
             <span class="sr-only">Mode</span>
-            <select id="direction">
-              <option value="front-to-back">State &rarr; Capital</option>
-              <option value="back-to-front">Capital &rarr; State</option>
-              <option value="mixed">Mixed</option>
-            </select>
+            <!-- Options are built from the deck's side labels. -->
+            <select id="direction"></select>
           </label>
           <label>
             <span class="sr-only">Theme</span>

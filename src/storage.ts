@@ -7,8 +7,12 @@ const KEYS = {
   theme: "statelearner:theme",
   map: "statelearner:map",
   sound: "statelearner:sound",
-  cleared: "statelearner:cleared",
+  deck: "statelearner:deck",
 } as const;
+
+/** Progress was a single global key before there was more than one deck. */
+const LEGACY_CLEARED = "statelearner:cleared";
+const clearedKey = (deckId: string) => `statelearner:cleared:${deckId}`;
 
 /** localStorage throws in some privacy modes; settings are never worth a crash. */
 function read(key: string): string | null {
@@ -22,6 +26,14 @@ function read(key: string): string | null {
 function write(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+function remove(key: string): void {
+  try {
+    localStorage.removeItem(key);
   } catch {
     /* ignore */
   }
@@ -62,6 +74,13 @@ export const settings = {
     write(KEYS.sound, value ? "on" : "off");
   },
 
+  deck(): string | null {
+    return read(KEYS.deck);
+  },
+  setDeck(value: string): void {
+    write(KEYS.deck, value);
+  },
+
   mapEnabled(): boolean {
     return read(KEYS.map) !== "off";
   },
@@ -70,24 +89,45 @@ export const settings = {
   },
 };
 
-/** Ids of groups cleared at least once, used only to mark the group list. */
-export const progress = {
-  cleared(): Set<string> {
-    const raw = read(KEYS.cleared);
-    if (raw === null) return new Set();
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
-    } catch {
-      return new Set();
-    }
-  },
-  markCleared(groupId: string): void {
-    const ids = progress.cleared();
-    ids.add(groupId);
-    write(KEYS.cleared, JSON.stringify([...ids]));
-  },
-  reset(): void {
-    write(KEYS.cleared, "[]");
-  },
-};
+/**
+ * Moves pre-multi-deck progress onto the states deck. Runs once: the legacy key
+ * is dropped afterwards, so a later deck can never inherit it.
+ */
+export function migrateLegacyProgress(statesDeckId: string): void {
+  const legacy = read(LEGACY_CLEARED);
+  if (legacy === null) return;
+  if (read(clearedKey(statesDeckId)) === null) write(clearedKey(statesDeckId), legacy);
+  remove(LEGACY_CLEARED);
+}
+
+export interface Progress {
+  cleared(): Set<string>;
+  markCleared(groupId: string): void;
+  reset(): void;
+}
+
+/** Ids of groups cleared at least once, per deck, used to mark the group list. */
+export function progressFor(deckId: string): Progress {
+  const key = clearedKey(deckId);
+  const self: Progress = {
+    cleared(): Set<string> {
+      const raw = read(key);
+      if (raw === null) return new Set();
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
+      } catch {
+        return new Set();
+      }
+    },
+    markCleared(groupId: string): void {
+      const ids = self.cleared();
+      ids.add(groupId);
+      write(key, JSON.stringify([...ids]));
+    },
+    reset(): void {
+      write(key, "[]");
+    },
+  };
+  return self;
+}

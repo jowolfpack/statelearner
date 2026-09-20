@@ -502,3 +502,40 @@ describe("regions", () => {
     expect(byId("next-group").hidden).toBe(true);
   });
 });
+
+describe("decks", () => {
+  it("names the mode options after the deck's own sides", () => {
+    const options = [...byId<HTMLSelectElement>("direction").options];
+    expect(options.map((o) => o.value)).toEqual([
+      "front-to-back",
+      "back-to-front",
+      "mixed",
+    ]);
+    expect(options.map((o) => o.textContent)).toEqual([
+      "State → Capital",
+      "Capital → State",
+      "Mixed",
+    ]);
+  });
+
+  it("hides the deck chooser while there is only one deck", () => {
+    expect(byId("deck-label").hidden).toBe(true);
+    expect([...byId<HTMLSelectElement>("deck").options].map((o) => o.value)).toEqual([
+      "us-states",
+    ]);
+  });
+
+  it("draws the map the deck supplies", () => {
+    expect(document.querySelectorAll(".us-map-state")).toHaveLength(50);
+    expect(document.querySelector(".us-map")?.getAttribute("aria-label")).toBe(
+      "Map of the United States",
+    );
+  });
+
+  it("stores progress under the deck's own key", () => {
+    openFirstGroupAndDrill();
+    clearGroup();
+    expect(localStorage.getItem("statelearner:cleared:us-states")).toContain("new-england");
+    expect(localStorage.getItem("statelearner:cleared")).toBeNull();
+  });
+});

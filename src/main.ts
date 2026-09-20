@@ -1,9 +1,16 @@
 import "./style.css";
 import { usStatesDeck } from "./data/us-states";
-import { wholeDeckGroup, type Group } from "./data/types";
+import { deckById, decks } from "./data/decks";
+import { wholeDeckGroup, type Deck, type Group } from "./data/types";
 import { GroupSession } from "./group-session";
-import { UsMap } from "./map";
-import { progress, settings, type Theme } from "./storage";
+import { RegionMap } from "./map";
+import {
+  migrateLegacyProgress,
+  progressFor,
+  settings,
+  type Progress,
+  type Theme,
+} from "./storage";
 import { applyTheme, initTheme } from "./theme";
 import { createSpeaker } from "./speech";
 import type { Direction } from "./quiz";
@@ -17,6 +24,8 @@ function el<T extends HTMLElement>(id: string): T {
 const ui = {
   back: el<HTMLButtonElement>("back"),
   title: el("title"),
+  deck: el<HTMLSelectElement>("deck"),
+  deckLabel: el("deck-label"),
   direction: el<HTMLSelectElement>("direction"),
   theme: el<HTMLSelectElement>("theme"),
   mapToggle: el<HTMLInputElement>("map-toggle"),
@@ -58,14 +67,44 @@ const ui = {
   backToGroups: el<HTMLButtonElement>("back-to-groups"),
 };
 
-const deck = usStatesDeck;
-const everyState = wholeDeckGroup(deck);
-const map = new UsMap();
 const speech = createSpeaker();
-ui.mapSlot.append(map.element);
 
+// Swapped together by useDeck(); everything below reads the current set.
+let deck: Deck;
+let everyCard: Group;
+let map: RegionMap | null = null;
+let progress: Progress;
 let session: GroupSession | null = null;
 
+function option(value: string, text: string): HTMLOptionElement {
+  const node = document.createElement("option");
+  node.value = value;
+  node.textContent = text;
+  return node;
+}
+
+/** Mode labels name the deck's own sides, so they read right for any subject. */
+function fillDirectionOptions(active: Deck): void {
+  ui.direction.replaceChildren(
+    option("front-to-back", `${active.frontLabel} → ${active.backLabel}`),
+    option("back-to-front", `${active.backLabel} → ${active.frontLabel}`),
+    option("mixed", "Mixed"),
+  );
+  ui.direction.value = settings.direction();
+}
+
+function useDeck(next: Deck): void {
+  speech.cancel();
+  deck = next;
+  settings.setDeck(next.id);
+  everyCard = wholeDeckGroup(next);
+  progress = progressFor(next.id);
+  map = next.map === undefined ? null : new RegionMap(next.map);
+  ui.mapSlot.replaceChildren(...(map === null ? [] : [map.element]));
+  fillDirectionOptions(next);
+  ui.deck.value = next.id;
+  session = null;
+}
 const SPEAKER_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
   '<path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z"/>' +
@@ -149,7 +188,7 @@ function groupRow(group: Group, cleared: Set<string>): HTMLLIElement {
 function renderPicker(): void {
   const cleared = progress.cleared();
 
-  const everything = groupRow(everyState, cleared);
+  const everything = groupRow(everyCard, cleared);
   everything.classList.add("is-everything");
 
   // Widest first: the whole deck, then the coarse regions, then the divisions.
@@ -258,6 +297,10 @@ function highlightedCardId(): string | null {
 }
 
 function renderMap(): void {
+  if (map === null) {
+    ui.mapSlot.hidden = true;
+    return;
+  }
   const enabled = settings.mapEnabled();
   ui.mapSlot.hidden = !enabled;
   map.highlight(enabled ? highlightedCardId() : null);
@@ -331,6 +374,11 @@ ui.nextGroup.addEventListener("click", () => {
   else startGroup(next);
 });
 
+ui.deck.addEventListener("change", () => {
+  useDeck(deckById(ui.deck.value));
+  render();
+});
+
 ui.direction.addEventListener("change", () => {
   const direction = ui.direction.value as Direction;
   settings.setDirection(direction);
@@ -363,10 +411,18 @@ ui.resetProgress.addEventListener("click", () => {
 
 // -- Boot ----------------------------------------------------------------
 
+// Progress predating multiple decks belongs to the states deck.
+migrateLegacyProgress(usStatesDeck.id);
+
+ui.deck.replaceChildren(...decks.map((d) => option(d.id, d.name)));
+// A deck chooser is noise while there is only one deck.
+ui.deckLabel.hidden = decks.length < 2;
+
 ui.theme.value = initTheme();
-ui.direction.value = settings.direction();
 ui.mapToggle.checked = settings.mapEnabled();
 ui.soundToggle.checked = settings.soundEnabled();
 // No point offering a switch for something this browser cannot do.
 ui.soundToggleLabel.hidden = !speech.supported;
+
+useDeck(deckById(settings.deck()));
 render();

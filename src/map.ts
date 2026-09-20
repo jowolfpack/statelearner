@@ -1,25 +1,25 @@
-import { MAP_VIEWBOX, STATE_PATHS } from "./data/us-map";
+import type { DeckMap } from "./data/types";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /**
- * The US map. Every state is one <path> built once; highlighting is a class
- * swap, so asking a new state never touches the DOM beyond two elements.
+ * A deck's map. Every region is one <path> built once; highlighting is a class
+ * swap, so asking a new card never touches the DOM beyond two elements.
  */
-export class UsMap {
+export class RegionMap {
   private readonly paths = new Map<string, SVGPathElement>();
   private highlighted: string | null = null;
 
   readonly element: SVGSVGElement;
 
-  constructor() {
+  constructor(source: DeckMap) {
     const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("viewBox", MAP_VIEWBOX);
+    svg.setAttribute("viewBox", source.viewBox);
     svg.setAttribute("class", "us-map");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Map of the United States");
+    svg.setAttribute("aria-label", source.label);
 
-    for (const [id, d] of Object.entries(STATE_PATHS)) {
+    for (const [id, d] of Object.entries(source.paths)) {
       const path = document.createElementNS(SVG_NS, "path");
       path.setAttribute("d", d);
       path.setAttribute("class", "us-map-state");
@@ -40,7 +40,7 @@ export class UsMap {
     const path = cardId === null ? undefined : this.paths.get(cardId);
     if (path !== undefined) {
       path.classList.add("is-active");
-      // Keep the active state painted over its neighbours' borders.
+      // Keep the active region painted over its neighbours' borders.
       path.parentNode?.append(path);
     }
     this.highlighted = path === undefined ? null : cardId;

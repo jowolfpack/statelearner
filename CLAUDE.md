@@ -31,7 +31,15 @@ no backend. State lives in a single `GroupSession`; the DOM is updated by one
 `render()` in `src/main.ts` that redraws from session state on every event.
 
 **Decks (`src/data/`)** — a `Deck` is a named pair of sides (`frontLabel`,
-`backLabel`), its cards, and its `groups`. Nothing downstream hardcodes "state"
+`backLabel`), its cards, its `groups`, and optionally its `map` geometry.
+`decks.ts` is the registry; `main.ts` holds no deck of its own but swaps the
+current one through `useDeck()`, which rebuilds the map, the whole-deck group,
+the progress store and the mode labels together. Mode options are generated from
+the deck's side labels, so they read correctly for any subject.
+
+Progress is stored per deck under `statelearner:cleared:<deckId>`.
+`migrateLegacyProgress()` moves the old global key onto the states deck once and
+then deletes it, so a deck added later can never inherit it. Nothing downstream hardcodes "state"
 or "capital"; UI labels come from the deck, so a new subject is a new `Deck` and
 nothing else. The `[state, capital, postal code]` table lives in
 `us-states.json` because `scripts/build-map.mjs` reads it too — the app and the

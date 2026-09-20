@@ -20,6 +20,14 @@ export interface Group {
   cardIds: string[];
 }
 
+/** Geometry for decks whose cards live on a map, keyed by card id. */
+export interface DeckMap {
+  viewBox: string;
+  paths: Record<string, string>;
+  /** For the rendered SVG's accessible name, e.g. "Map of the United States". */
+  label: string;
+}
+
 /**
  * A set of cards plus the names of its two sides. Everything downstream
  * (session logic, UI labels) reads the side names from here, so adding a new
@@ -38,6 +46,8 @@ export interface Deck {
    * of the cards.
    */
   regions?: Group[];
+  /** Supplied by decks that show their cards on a map. */
+  map?: DeckMap;
 }
 
 export function cardsOf(deck: Deck, group: Group): Card[] {
