@@ -527,6 +527,10 @@ describe("decks", () => {
     ]);
   });
 
+  it("keeps the wide US map above the question, not beside it", () => {
+    expect(byId("app").classList.contains("map-beside")).toBe(false);
+  });
+
   it("puts the map beside the panels, not above them", () => {
     const workspace = document.querySelector(".workspace");
     expect(workspace).not.toBeNull();
@@ -585,6 +589,12 @@ describe("the NYC deck", () => {
     expect(document.querySelector(".landmark-land")).not.toBeNull();
     expect(document.querySelector(".landmark-central-park")).not.toBeNull();
     expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(2);
+  });
+
+  it("puts its tall map beside the question", () => {
+    expect(byId("app").classList.contains("map-beside")).toBe(true);
+    const box = (nycDeck.map?.viewBox ?? "").split(" ").map(Number);
+    expect(box[3]).toBeGreaterThan(box[2] ?? 0);
   });
 
   it("names its modes after neighborhood and location", () => {

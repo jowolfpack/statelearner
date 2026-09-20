@@ -22,6 +22,7 @@ function el<T extends HTMLElement>(id: string): T {
 }
 
 const ui = {
+  app: el("app"),
   back: el<HTMLButtonElement>("back"),
   title: el("title"),
   deck: el<HTMLSelectElement>("deck"),
@@ -95,6 +96,14 @@ function fillDirectionOptions(active: Deck): void {
   ui.direction.value = settings.direction();
 }
 
+/** True when the deck's map is portrait, from its own viewBox. */
+function isTallMap(candidate: Deck): boolean {
+  const box = candidate.map?.viewBox.trim().split(/\s+/).map(Number);
+  if (box === undefined || box.length !== 4 || box.some(Number.isNaN)) return false;
+  const [, , width, height] = box as [number, number, number, number];
+  return height > width;
+}
+
 function useDeck(next: Deck): void {
   speech.cancel();
   deck = next;
@@ -103,6 +112,9 @@ function useDeck(next: Deck): void {
   progress = progressFor(next.id);
   map = next.map === undefined ? null : new RegionMap(next.map);
   ui.mapSlot.replaceChildren(...(map === null ? [] : [map.element]));
+  // A map taller than it is wide goes beside the question on a wide screen;
+  // a wide one like the US would only be squashed by a narrow column.
+  ui.app.classList.toggle("map-beside", isTallMap(next));
   fillDirectionOptions(next);
   ui.deck.value = next.id;
   session = null;

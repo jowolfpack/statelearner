@@ -66,26 +66,26 @@ body {
  * single card.
  */
 @media (min-width: 900px) {
-  .app {
+  .app.map-beside {
     max-width: 1120px;
   }
 
-  .workspace {
+  .app.map-beside .workspace {
     grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1fr);
     align-items: start;
   }
 
   /* With the map switched off there is no left column to keep. */
-  .workspace:has(> .map-slot[hidden]) {
+  .app.map-beside .workspace:has(> .map-slot[hidden]) {
     grid-template-columns: 1fr;
   }
 
-  .map-slot {
+  .app.map-beside .map-slot {
     position: sticky;
     top: 20px;
   }
 
-  .us-map {
+  .app.map-beside .us-map {
     max-height: calc(100vh - 120px);
   }
 }
