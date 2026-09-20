@@ -44,8 +44,8 @@ Answers are matched loosely: case, accents and punctuation are ignored, `St.`
 and `Saint` are interchangeable, and a state's postal code (`WY`) counts when
 the state is the answer.
 
-Mode (State→Capital, Capital→State, Mixed), theme (System/Light/Dark), the map
-toggle and cleared groups are all remembered locally.
+Mode (State→Capital, Capital→State, Mixed), theme (dark by default, switchable
+to light), the map toggle and cleared groups are all remembered locally.
 
 ## Map data
 

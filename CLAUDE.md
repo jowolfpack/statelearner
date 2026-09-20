@@ -87,10 +87,11 @@ been graded.
 cleared group ids, all wrapped in try/catch because `localStorage` throws in some
 privacy modes. Settings are never worth a crash.
 
-**Theme** — tokens are declared three times in `style.css`: bare `:root` for
-light, `@media (prefers-color-scheme: dark)` guarded by `:not([data-theme=light])`
-for "system", and `:root[data-theme="dark"]` so the toggle wins in both
-directions. Adding a color in only one of those blocks is the usual bug.
+**Theme** — dark is the default and there is no "follow the OS" option. Tokens
+are declared twice in `style.css`: bare `:root` carries the dark palette, so the
+very first paint is dark with no flash, and `:root[data-theme="light"]` overrides
+it. Both blocks must define the same token set; adding a color to only one is the
+usual bug. `prefers-color-scheme` is deliberately not consulted anywhere.
 
 ## Tests
 

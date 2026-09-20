@@ -1,6 +1,6 @@
 import type { Direction } from "./quiz";
 
-export type Theme = "system" | "light" | "dark";
+export type Theme = "dark" | "light";
 
 const KEYS = {
   direction: "statelearner:direction",
@@ -43,7 +43,8 @@ export const settings = {
   },
 
   theme(): Theme {
-    return oneOf(read(KEYS.theme), ["system", "light", "dark"] as const, "system");
+    // A stored "system" from an older build falls through to the dark default.
+    return oneOf(read(KEYS.theme), ["dark", "light"] as const, "dark");
   },
   setTheme(value: Theme): void {
     write(KEYS.theme, value);

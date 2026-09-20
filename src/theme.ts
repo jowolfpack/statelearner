@@ -1,16 +1,11 @@
 import { settings, type Theme } from "./storage";
 
 /**
- * "system" leaves the stylesheet's prefers-color-scheme rules in charge;
- * "light"/"dark" stamp data-theme on <html> to override them.
+ * Dark is the stylesheet's default; data-theme is stamped either way so the
+ * document always states the theme it is actually showing.
  */
 export function applyTheme(theme: Theme): void {
-  const root = document.documentElement;
-  if (theme === "system") {
-    root.removeAttribute("data-theme");
-  } else {
-    root.setAttribute("data-theme", theme);
-  }
+  document.documentElement.setAttribute("data-theme", theme);
 }
 
 export function initTheme(): Theme {

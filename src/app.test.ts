@@ -194,16 +194,40 @@ describe("map", () => {
 });
 
 describe("theme", () => {
-  it("overrides the OS setting and persists the choice", () => {
-    const select = byId<HTMLSelectElement>("theme");
-    select.value = "dark";
-    select.dispatchEvent(new Event("change"));
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  const select = () => byId<HTMLSelectElement>("theme");
 
-    select.value = "system";
-    select.dispatchEvent(new Event("change"));
-    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
-    expect(localStorage.getItem("statelearner:theme")).toBe("system");
+  function choose(theme: string): void {
+    select().value = theme;
+    select().dispatchEvent(new Event("change"));
+  }
+
+  it("starts dark", () => {
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(select().value).toBe("dark");
+  });
+
+  it("offers dark and light only", () => {
+    const values = [...select().options].map((o) => o.value);
+    expect(values).toEqual(["dark", "light"]);
+  });
+
+  it("switches to light and back, persisting the choice", () => {
+    choose("light");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(localStorage.getItem("statelearner:theme")).toBe("light");
+
+    choose("dark");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(localStorage.getItem("statelearner:theme")).toBe("dark");
+  });
+
+  it("falls back to dark for a theme stored by an older build", async () => {
+    localStorage.setItem("statelearner:theme", "system");
+    document.documentElement.innerHTML = html;
+    vi.resetModules();
+    await import("./main");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(byId<HTMLSelectElement>("theme").value).toBe("dark");
   });
 });
 
