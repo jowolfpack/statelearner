@@ -12,7 +12,8 @@
   --accent: #7aa2f7;
   --ok: #57c48a;
   --bad: #f2837b;
-  --map-land: #2b3037;
+  --map-land: #39424e;
+  --map-quiet: #23282f;
   --map-stroke: #14161a;
   color-scheme: dark;
 }
@@ -26,7 +27,8 @@
   --accent: #2f5fd0;
   --ok: #1a7a4c;
   --bad: #b3261e;
-  --map-land: #e4e7ec;
+  --map-land: #dbe1e9;
+  --map-quiet: #edf0f3;
   --map-stroke: #ffffff;
   color-scheme: light;
 }
@@ -132,7 +134,11 @@ select {
 .us-map-state {
   fill: var(--map-land);
   stroke: var(--map-stroke);
-  stroke-width: 0.75;
+  /* Without this the stroke scales with the viewBox: the NYC map is 729 units
+     wide in a ~560px box, which rendered every boundary at about half a pixel
+     and merged neighbouring areas into one mass. */
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1;
   stroke-linejoin: round;
   transition: fill 160ms ease-out;
 }
@@ -141,11 +147,12 @@ select {
   pointer-events: none;
 }
 
-/* The land nobody is asked about: context, not an answer. */
+/* The land nobody is asked about: clearly quieter than an answerable area. */
 .landmark-land {
-  fill: var(--line);
+  fill: var(--map-quiet);
   stroke: var(--map-stroke);
-  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1;
 }
 
 .landmark-central-park {
@@ -176,7 +183,7 @@ select {
 .us-map-state.is-active {
   fill: var(--accent);
   stroke: var(--surface);
-  stroke-width: 1.25;
+  stroke-width: 2;
 }
 
 /* -- Group picker ------------------------------------------------------ */
