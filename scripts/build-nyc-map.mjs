@@ -174,6 +174,33 @@ const MANHATTAN = [
   ["inwood", "dyckman", "northEnd", "farWest", "farEast"],
 ];
 
+/**
+ * Jersey City's neighbourhoods. OpenStreetMap has these only as points, and
+ * they are not official boundaries, so these boxes are an approximation --
+ * unlike the ten municipalities, which are real. Axis-aligned on purpose:
+ * Jersey City is not on the Manhattan grid.
+ */
+const JERSEY_CITY_PARTS = [
+  ["jc-heights", [40.735, -74.07], [40.775, -74.02]],
+  ["jc-journal-square", [40.722, -74.075], [40.74, -74.05]],
+  ["jc-downtown", [40.708, -74.05], [40.733, -74.02]],
+  ["jc-west-side", [40.706, -74.1], [40.74, -74.072]],
+  ["jc-bergen-lafayette", [40.695, -74.085], [40.72, -74.045]],
+  ["jc-greenville", [40.655, -74.11], [40.7, -74.05]],
+];
+
+/** The eight added municipalities, drawn from their real boundaries. */
+const NJ_TOWNS = [
+  "weehawken",
+  "union-city",
+  "west-new-york",
+  "guttenberg",
+  "north-bergen",
+  "edgewater",
+  "fort-lee",
+  "cliffside-park",
+];
+
 /** Across the rivers, where the Manhattan grid does not apply: corner pairs. */
 const OUTER = [
   // A chain down the waterfront, then inland. Each is trimmed against whatever
@@ -210,29 +237,32 @@ const NJ_SHORELINE = [
   [-74.0255, 40.736],
   [-74.024, 40.745],
   [-74.0235, 40.752],
-  [-74.0215, 40.76],
-  [-74.019, 40.77],
-  [-74.016, 40.782],
-  // North of Hoboken nothing is asked about, but the Palisades face Upper
-  // Manhattan the whole way up and the map looks cut off without them.
-  [-74.01, 40.792],
-  [-74.002, 40.805],
-  [-73.995, 40.818],
-  [-73.988, 40.83],
-  [-73.98, 40.842],
-  [-73.973, 40.852],
-  [-73.966, 40.864],
-  [-73.958, 40.878],
-  [-73.954, 40.89],
+  // North of here the line is set from Manhattan's own west edge, measured off
+  // the borough polygons, less the river's width -- which narrows from about
+  // 2km at Weehawken to 1.3km at the George Washington Bridge.
+  [-74.0235, 40.76],
+  [-74.0191, 40.77],
+  [-74.014, 40.78],
+  [-74.01, 40.79],
+  [-74.003, 40.8],
+  [-73.995, 40.81],
+  [-73.985, 40.82],
+  [-73.977, 40.83],
+  [-73.968, 40.84],
+  [-73.964, 40.85],
+  [-73.957, 40.86],
+  [-73.95, 40.87],
+  [-73.944, 40.88],
+  [-73.942, 40.89],
 ];
 
 /** Land west of that shoreline. */
 const NJ_LAND = [
-  [[[-74.09, 40.658], ...NJ_SHORELINE, [-74.09, 40.895], [-74.09, 40.658]]],
+  [[[-74.14, 40.658], ...NJ_SHORELINE, [-74.14, 40.895], [-74.14, 40.658]]],
 ];
 
 /** Everything drawn, so far Brooklyn and Queens stay off the map. */
-const VIEWPORT = latLonBox([40.648, -74.072], [40.895, -73.892]);
+const VIEWPORT = latLonBox([40.648, -74.102], [40.895, -73.892]);
 
 function toMultiPolygon(geometry) {
   if (geometry.type === "Polygon") return [geometry.coordinates];
@@ -316,24 +346,13 @@ const nycLand = unionWithin(
   [...inBorough("Manhattan"), ...inBorough("Brooklyn"), ...inBorough("Queens"), ...inBorough("Bronx")],
   VIEWPORT,
 );
-// Trim each municipality to land, then keep Hoboken whole: the two boundaries
-// overlap out in the river, and Jersey City is drawn second.
-const hobokenLand = polygonClipping.intersection(
-  clean(NJ.polygons.hoboken),
-  VIEWPORT,
-  NJ_LAND,
-);
-const jerseyLand = polygonClipping.difference(
-  polygonClipping.intersection(clean(NJ.polygons["jersey-city"]), VIEWPORT, NJ_LAND),
-  hobokenLand,
-);
-const njPieces = [hobokenLand, jerseyLand];
-if (polygonClipping.intersection(hobokenLand, jerseyLand).length > 0) {
-  throw new Error("Hoboken and Jersey City still overlap");
-}
-// The whole Jersey bank is drawn as context, not just the two named areas.
-const njSilhouette = polygonClipping.intersection(NJ_LAND, VIEWPORT);
-const silhouette = polygonClipping.union(nycLand, njSilhouette);
+// Municipal boundaries run out into the Hudson to the state line, so every one
+// of them is trimmed to land first.
+const njMask = polygonClipping.intersection(NJ_LAND, VIEWPORT);
+const townLand = (id) => polygonClipping.intersection(clean(NJ.polygons[id]), njMask);
+const jerseyCityLand = townLand("jersey-city");
+// The whole Jersey bank is drawn as context, not just the named areas.
+const silhouette = polygonClipping.union(nycLand, njMask);
 
 const park = polygonClipping.intersection(
   clean(
@@ -349,6 +368,11 @@ const regions = [];
 const shapes = [
   ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e), manhattanIsland]),
   ...OUTER.map(([id, a, b]) => [id, block(a, b), outerLand]),
+  // Whole municipalities: their own boundary is the shape, land does the rest.
+  ["hoboken", clean(NJ.polygons.hoboken), njMask],
+  ...NJ_TOWNS.map((id) => [id, clean(NJ.polygons[id]), njMask]),
+  // Jersey City is cut into its neighbourhoods, which have no official lines.
+  ...JERSEY_CITY_PARTS.map(([id, a, b]) => [id, latLonBox(a, b), jerseyCityLand]),
 ];
 // Claimed ground, so no two areas can cover the same block. Across the rivers
 // the blocks are drawn generously and would otherwise overlap, leaving whichever
@@ -364,13 +388,6 @@ for (const [id, shape, land] of shapes) {
   if (piece.length === 0) throw new Error(`${id} does not land on any land`);
   regions.push([id, piece]);
   claimed = claimed.length === 0 ? piece : polygonClipping.union(claimed, piece);
-}
-
-// The two New Jersey areas are whole municipalities, so they need no cutting.
-for (const [index, id] of ["hoboken", "jersey-city"].entries()) {
-  const piece = njPieces[index];
-  if (piece.length === 0) throw new Error(`${id} fell outside the viewport`);
-  regions.push([id, piece]);
 }
 
 /**
@@ -416,8 +433,23 @@ const LANDMARKS = {
   "fort-greene": [40.6892, -73.9742],
   bococa: [40.6860, -73.9970],
   "park-slope": [40.6710, -73.9780],
-  hoboken: [40.7440, -74.0324],
-  "jersey-city": [40.7178, -74.0431],
+  hoboken: [40.7429, -74.0337],
+  // Waterfront towns are narrow strips, so these sit inland of the shoreline
+  // rather than at a bounding-box centre, which would land in the river.
+  weehawken: [40.7673, -74.0232],
+  "union-city": [40.7667, -74.0303],
+  "west-new-york": [40.7877, -74.0159],
+  guttenberg: [40.7956, -74.0126],
+  "north-bergen": [40.7888, -74.0269],
+  edgewater: [40.8385, -73.9695],
+  "fort-lee": [40.8468, -73.9735],
+  "cliffside-park": [40.8184, -73.9882],
+  "jc-heights": [40.752, -74.0522],
+  "jc-journal-square": [40.731, -74.0656],
+  "jc-downtown": [40.7199, -74.0382],
+  "jc-west-side": [40.7204, -74.086],
+  "jc-bergen-lafayette": [40.7075, -74.072],
+  "jc-greenville": [40.6844, -74.0859],
 };
 
 const dot = ([lat, lon]) => {

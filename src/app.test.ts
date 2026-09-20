@@ -580,11 +580,21 @@ describe("the NYC deck", () => {
     chooseNyc();
   });
 
+  it("covers the book's 35 plus the New Jersey additions", () => {
+    expect(nycDeck.cards).toHaveLength(48);
+    const nj = nycDeck.groups.find((g) => g.id === "new-jersey");
+    expect(nj?.cardIds).toHaveLength(15);
+    // Every card belongs to exactly one group.
+    const grouped = nycDeck.groups.flatMap((g) => g.cardIds);
+    expect(new Set(grouped).size).toBe(48);
+    expect(grouped).toHaveLength(48);
+  });
+
   it("swaps in its own map and sections", () => {
     expect(document.querySelector(".us-map")?.getAttribute("aria-label")).toBe(
       "Map of New York City neighborhoods",
     );
-    expect(document.querySelectorAll(".us-map-state")).toHaveLength(35);
+    expect(document.querySelectorAll(".us-map-state")).toHaveLength(nycDeck.cards.length);
     // The land silhouette for context, and Central Park as a hole in the grid.
     expect(document.querySelector(".landmark-land")).not.toBeNull();
     expect(document.querySelector(".landmark-central-park")).not.toBeNull();

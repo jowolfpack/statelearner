@@ -44,8 +44,29 @@ const AREAS: ReadonlyArray<readonly [string, string, string[]]> = [
   ["fort-greene", "Fort Greene / Clinton Hill", []],
   ["bococa", "BoCoCa / Red Hook", ["Boerum Hill", "Cobble Hill", "Carroll Gardens"]],
   ["park-slope", "Park Slope / Prospect Heights / Windsor Terrace", []],
+];
+
+/**
+ * Beyond the book, which stops at Hoboken and Jersey City. The ten towns are
+ * real municipalities; the six Jersey City areas are its neighbourhoods, which
+ * have no official boundaries.
+ */
+const NEW_JERSEY: ReadonlyArray<readonly [string, string, string[]]> = [
   ["hoboken", "Hoboken", []],
-  ["jersey-city", "Jersey City", []],
+  ["jc-downtown", "Downtown Jersey City", ["Downtown JC", "Downtown"]],
+  ["jc-journal-square", "Journal Square", []],
+  ["jc-heights", "Jersey City Heights", ["The Heights", "Heights"]],
+  ["jc-bergen-lafayette", "Bergen-Lafayette", ["Bergen Lafayette", "Lafayette"]],
+  ["jc-west-side", "West Side (Jersey City)", ["West Side", "West Bergen"]],
+  ["jc-greenville", "Greenville", []],
+  ["weehawken", "Weehawken", []],
+  ["union-city", "Union City", []],
+  ["west-new-york", "West New York", ["WNY"]],
+  ["guttenberg", "Guttenberg", []],
+  ["north-bergen", "North Bergen", []],
+  ["cliffside-park", "Cliffside Park", []],
+  ["edgewater", "Edgewater", []],
+  ["fort-lee", "Fort Lee", []],
 ];
 
 const SECTIONS: ReadonlyArray<readonly [string, string, string[]]> = [
@@ -104,10 +125,9 @@ const SECTIONS: ReadonlyArray<readonly [string, string, string[]]> = [
       "fort-greene",
       "bococa",
       "park-slope",
-      "hoboken",
-      "jersey-city",
     ],
   ],
+  ["new-jersey", "New Jersey", NEW_JERSEY.map(([id]) => id)],
 ];
 
 /**
@@ -123,7 +143,7 @@ function spellings(name: string, extra: string[]): string[] {
   return [...new Set([name, ...parts, ...extra])];
 }
 
-const cards: Card[] = AREAS.map(([id, name, extra]) => ({
+const cards: Card[] = [...AREAS, ...NEW_JERSEY].map(([id, name, extra]) => ({
   id,
   front: name,
   // The "back" of one of these cards is its place on the map, which the map
@@ -138,7 +158,7 @@ const byId = new Map(groups.map((group) => [group.id, group]));
 
 const regions: Group[] = [
   ["manhattan", "Manhattan", ["downtown", "midtown-section", "uptown", "way-uptown"]],
-  ["across-the-rivers", "Across the Rivers", ["leaving-manhattan"]],
+  ["across-the-rivers", "Across the Rivers", ["leaving-manhattan", "new-jersey"]],
 ].map(([id, name, sectionIds]) => ({
   id: id as string,
   name: name as string,
