@@ -22,6 +22,7 @@ import polygonClipping from "polygon-clipping";
 const SOURCE = "https://data.cityofnewyork.us/api/geospatial/9nt8-h7nd?method=export&format=GeoJSON";
 const OUT = new URL("../src/data/nyc-map.ts", import.meta.url);
 const NJ = JSON.parse(readFileSync(new URL("./nj-boundaries.json", import.meta.url), "utf-8"));
+const WARDS = JSON.parse(readFileSync(new URL("./jc-wards.json", import.meta.url), "utf-8"));
 
 const WIDTH = 900;
 const HEIGHT = 1300;
@@ -178,18 +179,18 @@ const MANHATTAN = [
   ["inwood", "dyckman", "north", "farWest", "farEast"],
 ];
 /**
- * Jersey City's neighbourhoods. OpenStreetMap has these only as points, and
- * they are not official boundaries, so these boxes are an approximation --
- * unlike the ten municipalities, which are real. Axis-aligned on purpose:
- * Jersey City is not on the Manhattan grid.
+ * Jersey City's six neighbourhoods are its six wards, which the city publishes
+ * and which are named for them: A Greenville, B West Side, C Journal Square,
+ * D Heights, E Downtown, F Bergen-Lafayette. Real boundaries, so they no longer
+ * need cutting by hand.
  */
 const JERSEY_CITY_PARTS = [
-  ["jc-heights", [40.735, -74.07], [40.775, -74.02]],
-  ["jc-journal-square", [40.722, -74.075], [40.74, -74.05]],
-  ["jc-downtown", [40.708, -74.05], [40.733, -74.02]],
-  ["jc-west-side", [40.706, -74.1], [40.74, -74.072]],
-  ["jc-bergen-lafayette", [40.695, -74.085], [40.72, -74.045]],
-  ["jc-greenville", [40.655, -74.11], [40.7, -74.05]],
+  "jc-downtown",
+  "jc-journal-square",
+  "jc-heights",
+  "jc-bergen-lafayette",
+  "jc-west-side",
+  "jc-greenville",
 ];
 
 /** The eight added municipalities, drawn from their real boundaries. */
@@ -413,8 +414,8 @@ const shapes = [
   // Whole municipalities: their own boundary is the shape, land does the rest.
   ["hoboken", clean(NJ.polygons.hoboken), njMask],
   ...NJ_TOWNS.map((id) => [id, clean(NJ.polygons[id]), njMask]),
-  // Jersey City is cut into its neighbourhoods, which have no official lines.
-  ...JERSEY_CITY_PARTS.map(([id, a, b]) => [id, latLonBox(a, b), jerseyCityLand]),
+  // Jersey City's wards, trimmed to its own municipal land.
+  ...JERSEY_CITY_PARTS.map((id) => [id, clean(WARDS.polygons[id]), jerseyCityLand]),
 ];
 // Claimed ground, so no two areas can cover the same block. Across the rivers
 // the blocks are drawn generously and would otherwise overlap, leaving whichever

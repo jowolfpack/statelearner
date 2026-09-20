@@ -98,8 +98,8 @@ halves nothing distinguishes. Across the rivers the book's grouping is kept.
 New Jersey goes beyond the book entirely.
 
 Boundaries come from real data wherever it exists: NYC Open Data for the
-boroughs, OpenStreetMap for the New Jersey municipalities. Only Manhattan and
-Jersey City's six neighbourhoods are cut by hand, because no dataset has
+boroughs, OpenStreetMap for the New Jersey municipalities. Jersey City's six areas are its six wards, which the city publishes and which
+are named for them. Only Manhattan is cut by hand, because no dataset has
 boundaries at that granularity — Manhattan's are rectangles in the street grid,
 declared in `scripts/build-nyc-map.mjs` as metres from Fifth Avenue and 42nd
 Street.
