@@ -29,9 +29,14 @@ and puts you back at the start of the group, reshuffled.
 For a group you have not seen before, the **Study** button next to it walks you
 through every state with its capital shown first, then drops you into the drill.
 
-At the top of the list sits **All 50 States**, the same drill over the whole
-country. The restart rule is unchanged there, so a single slip at state 49 puts
-you back at state 1 — it is a test of the lot, not a gentler mode.
+The picker offers three sizes. **All 50 States** at the top, then **East / Mid /
+West** for a larger chunk at once (21, 16 and 13 states), then the nine
+divisions. Each region is an exact union of divisions, so the three sizes nest.
+
+All 50 States is the same drill over the whole
+country. The restart rule is unchanged at every size, so a single slip at state
+49 puts you back at state 1 — the bigger runs are a test of the lot, not a
+gentler mode.
 
 A group is cleared only by getting every state right in one unbroken run. There
 is no restart limit on purpose.

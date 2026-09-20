@@ -90,8 +90,8 @@ function clearGroup(limit = 120): void {
   if (!visible("cleared")) throw new Error("group never cleared");
 }
 
-/** The first of the nine divisions -- not the all-states row, which leads the list. */
-const FIRST_DIVISION = ".group-row:not(.is-everything)";
+/** The first of the nine divisions -- the whole-deck and region rows lead the list. */
+const FIRST_DIVISION = ".group-row:not(.is-everything):not(.is-region)";
 
 /** Opens the first division. Groups now start in the drill. */
 function openFirstGroupAndDrill(): void {
@@ -112,10 +112,12 @@ afterEach(() => {
 });
 
 describe("boot", () => {
-  it("starts on the group picker with all nine divisions plus a whole-deck run", () => {
+  it("starts on the group picker with all three tiers", () => {
     expect(visible("picker")).toBe(true);
-    expect(document.querySelectorAll(".group")).toHaveLength(10);
+    // 1 whole-deck run + 3 regions + 9 divisions.
+    expect(document.querySelectorAll(".group")).toHaveLength(13);
     expect(document.querySelectorAll(".group-row.is-everything")).toHaveLength(1);
+    expect(document.querySelectorAll(".group-row.is-region")).toHaveLength(3);
     expect(byId("title").textContent).toBe("StateLearner");
   });
 
@@ -133,7 +135,7 @@ describe("study pass", () => {
   });
 
   it("offers a Study button per group", () => {
-    expect(document.querySelectorAll(".group-study")).toHaveLength(10);
+    expect(document.querySelectorAll(".group-study")).toHaveLength(13);
   });
 
   it("opens a group into study, showing both sides", () => {
@@ -262,10 +264,10 @@ describe("all 50 states", () => {
     document.querySelector<HTMLButtonElement>(".group-row.is-everything .group")?.click();
   }
 
-  it("leads the list, above the nine divisions", () => {
+  it("leads the list, above the regions and divisions", () => {
     const rows = [...document.querySelectorAll(".group-row")];
     expect(rows[0]?.classList.contains("is-everything")).toBe(true);
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(13);
   });
 
   it("is offered as its own run covering every state", () => {
@@ -300,7 +302,7 @@ describe("all 50 states", () => {
   });
 
   it("leaves the nine divisions partitioning the states exactly once", () => {
-    const rows = [...document.querySelectorAll(".group-row:not(.is-everything) .group-count")];
+    const rows = [...document.querySelectorAll(`${FIRST_DIVISION} .group-count`)];
     expect(rows).toHaveLength(9);
     const total = rows.reduce((sum, el) => sum + Number(el.textContent?.split(" ")[0] ?? 0), 0);
     expect(total).toBe(50);
@@ -450,5 +452,53 @@ describe("pronunciation audio", () => {
     expect(byId("sound-toggle-label").hidden).toBe(true);
     openFirstGroupAndDrill();
     expect(speakers()).toHaveLength(0);
+  });
+});
+
+describe("regions", () => {
+  const regionRows = () => [...document.querySelectorAll(".group-row.is-region")];
+
+  it("offers East, Mid and West between the whole deck and the divisions", () => {
+    const rows = [...document.querySelectorAll(".group-row")];
+    expect(rows.slice(1, 4).every((r) => r.classList.contains("is-region"))).toBe(true);
+    expect(regionRows().map((r) => r.querySelector(".group-name")?.textContent)).toEqual([
+      "East",
+      "Mid",
+      "West",
+    ]);
+  });
+
+  it("covers all 50 states across the three regions", () => {
+    const counts = regionRows().map((r) =>
+      Number(r.querySelector(".group-count")?.textContent?.split(" ")[0] ?? 0),
+    );
+    expect(counts).toEqual([21, 16, 13]);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(50);
+  });
+
+  it("drills a region under the same rules", () => {
+    regionRows()[0]?.querySelector<HTMLButtonElement>(".group")?.click();
+    expect(visible("drill")).toBe(true);
+    expect(byId("title").textContent).toBe("East");
+    expect(byId("drill-position").textContent).toBe("1 of 21");
+
+    answer("completely wrong");
+    advance();
+    expect(byId("attempt").textContent).toBe("Attempt 2");
+    expect(byId("drill-position").textContent).toBe("1 of 21");
+  });
+
+  it("moves on to the next region, not the next division", () => {
+    regionRows()[0]?.querySelector<HTMLButtonElement>(".group")?.click();
+    clearGroup();
+    expect(byId("next-group").hidden).toBe(false);
+    byId<HTMLButtonElement>("next-group").click();
+    expect(byId("title").textContent).toBe("Mid");
+  });
+
+  it("offers no next group after the last region", () => {
+    regionRows()[2]?.querySelector<HTMLButtonElement>(".group")?.click();
+    clearGroup();
+    expect(byId("next-group").hidden).toBe(true);
   });
 });

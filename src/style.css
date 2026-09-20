@@ -184,11 +184,22 @@ select {
   color: var(--ok);
 }
 
-/* The whole-deck run leads the list, set apart from the nine divisions. */
-.group-row.is-everything {
+/* Three tiers, widest first: whole deck, regions, divisions. A rule closes
+   each tier -- the second one targets the first division after the regions. */
+.group-row.is-everything,
+.group-row.is-region + .group-row:not(.is-region) {
   margin-bottom: 6px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
+}
+
+.group-row.is-region + .group-row:not(.is-region) {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .group-study {

@@ -32,6 +32,12 @@ export interface Deck {
   backLabel: string;
   cards: Card[];
   groups: Group[];
+  /**
+   * Optional coarser groupings, each the union of several `groups`, for
+   * learning more at once. Kept separate so `groups` stays a clean partition
+   * of the cards.
+   */
+  regions?: Group[];
 }
 
 export function cardsOf(deck: Deck, group: Group): Card[] {

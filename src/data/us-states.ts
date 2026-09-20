@@ -52,6 +52,32 @@ const groups: Group[] = DIVISIONS.map(([id, name, codes]) => ({
   cardIds: codes.map((code) => code.toLowerCase()),
 }));
 
+/**
+ * Three coarse regions, each an exact union of divisions, so the hierarchy
+ * nests: all 50 > region > division, with no second copy of any state list.
+ * Sizes come out 21 / 16 / 13 -- uneven, but each one reads as a contiguous
+ * block on the map, which matters more than equal counts.
+ */
+const REGIONS: ReadonlyArray<readonly [string, string, string[]]> = [
+  ["east", "East", ["new-england", "middle-atlantic", "south-atlantic", "east-south-central"]],
+  ["mid", "Mid", ["east-north-central", "west-north-central", "west-south-central"]],
+  ["west", "West", ["mountain", "pacific"]],
+];
+
+const byId = new Map(groups.map((group) => [group.id, group]));
+
+const regions: Group[] = REGIONS.map(([id, name, divisionIds]) => ({
+  id,
+  name,
+  cardIds: divisionIds.flatMap((divisionId) => {
+    const division = byId.get(divisionId);
+    if (division === undefined) {
+      throw new Error(`Region ${id} references unknown division ${divisionId}`);
+    }
+    return division.cardIds;
+  }),
+}));
+
 export const usStatesDeck: Deck = {
   id: "us-states",
   name: "US States & Capitals",
@@ -71,4 +97,5 @@ export const usStatesDeck: Deck = {
     };
   }),
   groups,
+  regions,
 };

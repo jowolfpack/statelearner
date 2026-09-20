@@ -70,6 +70,25 @@ describe("the US deck", () => {
     }
   });
 
+  it("builds each region as an exact union of divisions", () => {
+    const regions = usStatesDeck.regions ?? [];
+    expect(regions.map((r) => r.id)).toEqual(["east", "mid", "west"]);
+
+    const divisions = new Map(usStatesDeck.groups.map((g) => [g.id, g.cardIds]));
+    const covered = regions.flatMap((r) => r.cardIds);
+    expect(covered).toHaveLength(50);
+    expect(new Set(covered).size).toBe(50);
+
+    // Every region is whole divisions, never a partial one.
+    for (const region of regions) {
+      const remaining = new Set(region.cardIds);
+      for (const ids of divisions.values()) {
+        if (ids.every((id) => remaining.has(id))) ids.forEach((id) => remaining.delete(id));
+      }
+      expect([...remaining], region.id).toEqual([]);
+    }
+  });
+
   it("keeps groups small enough to drill", () => {
     for (const group of usStatesDeck.groups) {
       expect(group.cardIds.length).toBeLessThanOrEqual(8);

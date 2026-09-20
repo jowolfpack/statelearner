@@ -148,10 +148,20 @@ function groupRow(group: Group, cleared: Set<string>): HTMLLIElement {
 
 function renderPicker(): void {
   const cleared = progress.cleared();
+
   const everything = groupRow(everyState, cleared);
   everything.classList.add("is-everything");
+
+  // Widest first: the whole deck, then the coarse regions, then the divisions.
+  const regions = (deck.regions ?? []).map((region) => {
+    const row = groupRow(region, cleared);
+    row.classList.add("is-region");
+    return row;
+  });
+
   ui.groupList.replaceChildren(
     everything,
+    ...regions,
     ...deck.groups.map((group) => groupRow(group, cleared)),
   );
 }
@@ -210,15 +220,22 @@ function renderDrill(active: GroupSession): void {
   ui.answer.focus();
 }
 
-/** The division after this one, or undefined for the last one or the all-states run. */
-function divisionAfter(current: Group): Group | undefined {
-  const index = deck.groups.findIndex((group) => group.id === current.id);
-  return index === -1 ? undefined : deck.groups[index + 1];
+/**
+ * The next group in whichever tier this one belongs to -- division after
+ * division, region after region. Undefined at the end of a tier, and for the
+ * whole-deck run, which belongs to no tier.
+ */
+function nextInSameTier(current: Group): Group | undefined {
+  for (const tier of [deck.groups, deck.regions ?? []]) {
+    const index = tier.findIndex((group) => group.id === current.id);
+    if (index !== -1) return tier[index + 1];
+  }
+  return undefined;
 }
 
 function renderCleared(active: GroupSession): void {
   ui.progressBar.style.width = "100%";
-  ui.nextGroup.hidden = divisionAfter(active.group) === undefined;
+  ui.nextGroup.hidden = nextInSameTier(active.group) === undefined;
   ui.clearedDetail.textContent =
     active.attempt === 1
       ? `${active.size} of ${active.size}, first run, no mistakes.`
@@ -309,7 +326,7 @@ ui.giveUp.addEventListener("click", () => {
 
 ui.nextGroup.addEventListener("click", () => {
   if (session === null) return;
-  const next = divisionAfter(session.group);
+  const next = nextInSameTier(session.group);
   if (next === undefined) leaveGroup();
   else startGroup(next);
 });

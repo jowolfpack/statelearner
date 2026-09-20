@@ -49,12 +49,17 @@ worth testing. A group has two phases:
 Picking a group goes straight to the drill; that is the default and the point of
 the app.
 
-The picker also offers a whole-deck run built by `wholeDeckGroup()` in
-`src/data/types.ts`. It is deliberately **not** in `deck.groups`, so the nine
-divisions still partition the cards exactly once — code that walks `deck.groups`
-(the "next group" button, the coverage test) keeps working unchanged. Anything
-iterating groups must not assume the current session's group is one of them;
-`divisionAfter()` in `main.ts` returns undefined for it.
+The picker offers three tiers, widest first: a whole-deck run from
+`wholeDeckGroup()` (`src/data/types.ts`), then `deck.regions` (East/Mid/West),
+then `deck.groups` (the nine divisions).
+
+Only `deck.groups` is a partition of the cards. The other two tiers are
+deliberately kept out of it, so the coverage test and anything walking
+`deck.groups` keep working unchanged. `deck.regions` is built in
+`us-states.ts` by concatenating whole divisions — never restate a state list, or
+the tiers drift apart. Anything iterating groups must not assume the session's
+group is one of them: `nextInSameTier()` in `main.ts` walks whichever tier the
+group came from, and returns undefined for the whole-deck run.
 
 This mechanic is deliberate and load-bearing. There is intentionally no restart
 limit, no way back to Study once the drill starts, and reshuffling on every
