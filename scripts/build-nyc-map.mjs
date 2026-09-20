@@ -121,12 +121,21 @@ U.farEast = Math.max(...Object.values(U)) + 6000;
 V.southEnd = Math.min(...Object.values(V)) - 6000;
 V.northEnd = Math.max(...Object.values(V)) + 6000;
 
+/**
+ * A grid line, named or given as a [lat, lon] point on it. Named lines are
+ * measured uptown; extended far enough south they drift off the streets they
+ * are named after, because downtown does not follow the Commissioners' grid.
+ * Blocks down there name their own points instead.
+ */
+const uOf = (ref) => (Array.isArray(ref) ? rot([ref[1], ref[0]])[0] : U[ref]);
+const vOf = (ref) => (Array.isArray(ref) ? rot([ref[1], ref[0]])[1] : V[ref]);
+
 /** A block bounded by two cross-streets and two avenues. */
 function gridBlock(south, north, west, east) {
-  const [u0, u1] = [U[west], U[east]];
-  const [v0, v1] = [V[south], V[north]];
+  const [u0, u1] = [uOf(west), uOf(east)];
+  const [v0, v1] = [vOf(south), vOf(north)];
   if (u0 === undefined || u1 === undefined || v0 === undefined || v1 === undefined) {
-    throw new Error(`Unknown grid line in ${south}/${north}/${west}/${east}`);
+    throw new Error(`Unknown grid line in a block definition`);
   }
   return [
     [[unrot([u0, v0]), unrot([u1, v0]), unrot([u1, v1]), unrot([u0, v1]), unrot([u0, v0])]],
@@ -136,15 +145,17 @@ function gridBlock(south, north, west, east) {
 /** Manhattan, as the book's rows: [id, south street, north street, west ave, east ave]. */
 const MANHATTAN = [
   ["financial-district", "southEnd", "chambers", "farWest", "farEast"],
-  ["tribeca", "chambers", "houston", "farWest", "sixth"],
-  ["city-hall-chinatown", "chambers", "houston", "sixth", "third"],
-  ["lower-east-side", "chambers", "houston", "third", "farEast"],
-  ["west-village", "houston", "fourteenth", "farWest", "sixth"],
-  ["washington-sq", "houston", "fourteenth", "sixth", "third"],
-  ["east-village", "houston", "fourteenth", "third", "farEast"],
+  // Below Houston the streets do not follow the uptown grid, so these name
+  // points on the dividing streets themselves rather than uptown avenues.
+  ["tribeca", "chambers", "houston", "farWest", [40.7215, -74.0045]],
+  ["city-hall-chinatown", "chambers", "houston", [40.7215, -74.0045], [40.717, -73.9935]],
+  ["lower-east-side", "chambers", "houston", [40.717, -73.9935], "farEast"],
+  ["west-village", "houston", "fourteenth", "farWest", [40.7305, -74.0025]],
+  ["washington-sq", "houston", "fourteenth", [40.7305, -74.0025], [40.7275, -73.989]],
+  ["east-village", "houston", "fourteenth", [40.7275, -73.989], "farEast"],
   ["chelsea", "fourteenth", "thirtyFourth", "farWest", "sixth"],
-  ["flatiron", "fourteenth", "thirtyFourth", "sixth", "park"],
-  ["murray-hill-gramercy", "fourteenth", "thirtyFourth", "park", "farEast"],
+  ["flatiron", "fourteenth", "thirtyFourth", "sixth", [40.7395, -73.986]],
+  ["murray-hill-gramercy", "fourteenth", "thirtyFourth", [40.7395, -73.986], "farEast"],
   ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "eighth"],
   ["midtown", "thirtyFourth", "fiftyNinth", "eighth", "park"],
   ["east-midtown", "thirtyFourth", "fiftyNinth", "park", "farEast"],
@@ -154,8 +165,8 @@ const MANHATTAN = [
   ["uws-upper", "eightySixth", "oneTenth", "farWest", "eighth"],
   ["ues-east-harlem", "eightySixth", "oneTenth", "fifth", "farEast"],
   ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "eighth"],
-  ["harlem-lower", "oneTenth", "oneTwentyFifth", "eighth", "third"],
-  ["el-barrio", "oneTenth", "oneTwentyFifth", "third", "farEast"],
+  ["harlem-lower", "oneTenth", "oneTwentyFifth", "eighth", [40.8005, -73.938]],
+  ["el-barrio", "oneTenth", "oneTwentyFifth", [40.8005, -73.938], "farEast"],
   ["manhattanville", "oneTwentyFifth", "oneFortyFifth", "farWest", "eighth"],
   ["harlem-upper", "oneTwentyFifth", "oneFortyFifth", "eighth", "farEast"],
   ["washington-heights", "oneFortyFifth", "oneEightyFirst", "farWest", "farEast"],
@@ -165,14 +176,16 @@ const MANHATTAN = [
 
 /** Across the rivers, where the Manhattan grid does not apply: corner pairs. */
 const OUTER = [
-  ["astoria", [40.755, -73.945], [40.79, -73.895]],
-  ["long-island-city", [40.735, -73.965], [40.762, -73.925]],
-  ["greenpoint", [40.719, -73.965], [40.74, -73.93]],
-  ["williamsburg", [40.699, -73.975], [40.722, -73.93]],
-  ["brooklyn-heights", [40.688, -74.015], [40.706, -73.985]],
+  // A chain down the waterfront, then inland. Each is trimmed against whatever
+  // the ones above it already claimed, so the order here is the book's.
+  ["astoria", [40.756, -73.94], [40.79, -73.895]],
+  ["long-island-city", [40.74, -73.96], [40.762, -73.925]],
+  ["greenpoint", [40.721, -73.962], [40.7395, -73.933]],
+  ["williamsburg", [40.7, -73.972], [40.725, -73.933]],
+  ["brooklyn-heights", [40.689, -74.01], [40.705, -73.985]],
   ["fort-greene", [40.68, -73.985], [40.7, -73.96]],
-  ["bococa", [40.665, -74.03], [40.688, -73.988]],
-  ["park-slope", [40.655, -73.988], [40.682, -73.96]],
+  ["bococa", [40.665, -74.025], [40.689, -73.988]],
+  ["park-slope", [40.658, -73.995], [40.684, -73.965]],
 ];
 
 /**
@@ -337,13 +350,20 @@ const shapes = [
   ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e), manhattanIsland]),
   ...OUTER.map(([id, a, b]) => [id, block(a, b), outerLand]),
 ];
+// Claimed ground, so no two areas can cover the same block. Across the rivers
+// the blocks are drawn generously and would otherwise overlap, leaving whichever
+// happened to be drawn last painted over its neighbour.
+let claimed = [];
 for (const [id, shape, land] of shapes) {
   // Cut the block out of real land, then take the park back out, so Central
   // Park reads as a hole in the grid rather than being paved over.
   const onLand = polygonClipping.intersection(land, shape);
-  const piece = polygonClipping.difference(onLand, park);
+  const unclaimed =
+    claimed.length === 0 ? onLand : polygonClipping.difference(onLand, claimed);
+  const piece = polygonClipping.difference(unclaimed, park);
   if (piece.length === 0) throw new Error(`${id} does not land on any land`);
   regions.push([id, piece]);
+  claimed = claimed.length === 0 ? piece : polygonClipping.union(claimed, piece);
 }
 
 // The two New Jersey areas are whole municipalities, so they need no cutting.
@@ -352,6 +372,89 @@ for (const [index, id] of ["hoboken", "jersey-city"].entries()) {
   if (piece.length === 0) throw new Error(`${id} fell outside the viewport`);
   regions.push([id, piece]);
 }
+
+/**
+ * A real point inside each area *as the book draws it* -- not the centre of the
+ * neighborhood's full real extent, which sometimes spills past the book's row.
+ * A block that does not contain its own landmark is in the wrong place, which
+ * is easiest to get wrong across the rivers, where the grid does not apply.
+ */
+const LANDMARKS = {
+  "financial-district": [40.7075, -74.0113],
+  tribeca: [40.7163, -74.0086],
+  "city-hall-chinatown": [40.7157, -73.9971],
+  "lower-east-side": [40.7185, -73.9865],
+  "west-village": [40.7358, -74.0036],
+  "washington-sq": [40.7295, -73.9965],
+  "east-village": [40.7265, -73.9815],
+  chelsea: [40.7465, -74.0014],
+  flatiron: [40.7411, -73.9897],
+  // Gramercy/Kips Bay: Murray Hill proper runs north of 34th, but the book puts
+  // this area in the 14th-34th row, so the landmark is where the two agree.
+  "murray-hill-gramercy": [40.74, -73.98],
+  "hells-kitchen": [40.7621, -73.9918],
+  midtown: [40.7549, -73.9840],
+  "east-midtown": [40.7546, -73.9707],
+  "uws-lower": [40.7769, -73.9814],
+  "ues-lower": [40.7700, -73.9600],
+  "uws-upper": [40.7910, -73.9720],
+  "ues-east-harlem": [40.7880, -73.9480],
+  "morningside-heights": [40.8075, -73.9626],
+  // Around 121st: Lower Harlem reaches past 125th in life, not in the book's row.
+  "harlem-lower": [40.806, -73.948],
+  "el-barrio": [40.7957, -73.9389],
+  manhattanville: [40.8190, -73.9540],
+  "harlem-upper": [40.8180, -73.9400],
+  "washington-heights": [40.8417, -73.9393],
+  "fort-george": [40.8593, -73.9297],
+  inwood: [40.8677, -73.9212],
+  astoria: [40.7644, -73.9235],
+  "long-island-city": [40.7447, -73.9485],
+  greenpoint: [40.7304, -73.9512],
+  williamsburg: [40.7143, -73.9566],
+  "brooklyn-heights": [40.6959, -73.9937],
+  "fort-greene": [40.6892, -73.9742],
+  bococa: [40.6860, -73.9970],
+  "park-slope": [40.6710, -73.9780],
+  hoboken: [40.7440, -74.0324],
+  "jersey-city": [40.7178, -74.0431],
+};
+
+const dot = ([lat, lon]) => {
+  const e = 2e-4;
+  return [
+    [
+      [
+        [lon - e, lat - e],
+        [lon + e, lat - e],
+        [lon + e, lat + e],
+        [lon - e, lat + e],
+        [lon - e, lat - e],
+      ],
+    ],
+  ];
+};
+
+const misplaced = [];
+for (const [id, geom] of regions) {
+  const at = LANDMARKS[id];
+  if (at === undefined) throw new Error(`No landmark declared for ${id}`);
+  if (polygonClipping.intersection(geom, dot(at)).length === 0) misplaced.push(id);
+}
+if (misplaced.length > 0) {
+  throw new Error(`These areas do not cover their own location: ${misplaced.join(", ")}`);
+}
+
+// Two areas covering the same ground means one is drawn over the other.
+const clashes = [];
+for (let i = 0; i < regions.length; i++) {
+  for (let j = i + 1; j < regions.length; j++) {
+    if (polygonClipping.intersection(regions[i][1], regions[j][1]).length > 0) {
+      clashes.push(`${regions[i][0]}/${regions[j][0]}`);
+    }
+  }
+}
+if (clashes.length > 0) throw new Error(`Overlapping areas: ${clashes.join(", ")}`);
 
 // A Manhattan block must never pick up land across a river: cutting against the
 // wrong landmass is what put Governors Island inside the Financial District.
