@@ -251,6 +251,10 @@ const OUTER_PARTS = [
  * of it is the real municipal boundary.
  */
 const NJ_SHORELINE = [
+  // Both ends run past the viewport on purpose: the polygon closes with a
+  // straight line back to its far corner, and if that line falls inside the
+  // frame it slices land off into water along the top and bottom edges.
+  [-74.083, 40.638],
   [-74.075, 40.66],
   [-74.068, 40.672],
   [-74.062, 40.685],
@@ -282,11 +286,13 @@ const NJ_SHORELINE = [
   [-73.95, 40.87],
   [-73.944, 40.88],
   [-73.942, 40.89],
+  [-73.938, 40.905],
+  [-73.933, 40.925],
 ];
 
 /** Land west of that shoreline. */
 const NJ_LAND = [
-  [[[-74.14, 40.658], ...NJ_SHORELINE, [-74.14, 40.895], [-74.14, 40.658]]],
+  [[[-74.16, 40.63], ...NJ_SHORELINE, [-74.16, 40.935], [-74.16, 40.63]]],
 ];
 
 /** Everything drawn, so far Brooklyn and Queens stay off the map. */
