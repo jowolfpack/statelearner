@@ -2,40 +2,53 @@ import type { Card, Deck, Group } from "./types";
 import { NYC_LANDMARKS, NYC_MAP_VIEWBOX, NYC_PATHS } from "./nyc-map";
 
 /**
- * The neighborhoods as *Not For Tourists New York* classifies them, in the
- * book's own order and sections. `id` matches the region id in nyc-map.ts.
+ * Manhattan by the names New Yorkers actually use. The book was the starting
+ * point, but its rows carried labels like "Upper East Side (Lower)" whose
+ * halves nothing distinguishes, so these are the real neighborhoods instead.
+ * Across the rivers the book's own grouping is kept.
  */
 const AREAS: ReadonlyArray<readonly [string, string, string[]]> = [
-  // id, name as printed, extra spellings beyond the slash-separated parts
-  ["financial-district", "Financial District", ["FiDi", "Wall Street"]],
+  // id, name, extra spellings beyond the slash-separated parts
+  ["battery-park-city", "Battery Park City", ["BPC"]],
+  ["financial-district", "Financial District", ["FiDi", "Wall Street", "Seaport"]],
   ["tribeca", "TriBeCa", []],
-  ["city-hall-chinatown", "City Hall / Chinatown", []],
+  ["chinatown", "Chinatown", ["Two Bridges", "Civic Center"]],
+  ["hudson-square", "Hudson Square", []],
+  ["soho", "SoHo", ["South of Houston"]],
+  ["little-italy", "Little Italy", ["Nolita", "NoLIta"]],
   ["lower-east-side", "Lower East Side", ["LES"]],
-  ["west-village", "West Village", []],
-  ["washington-sq", "Washington Sq / NYU / NoHo / SoHo", ["Washington Square"]],
-  ["east-village", "East Village", []],
+  ["noho", "NoHo", []],
+  ["west-village", "West Village", ["Meatpacking District", "Meatpacking"]],
+  ["greenwich-village", "Greenwich Village", ["The Village", "Washington Square"]],
+  ["east-village", "East Village", ["Alphabet City"]],
 
   ["chelsea", "Chelsea", []],
-  ["flatiron", "Flatiron / Lower Midtown", []],
-  ["murray-hill-gramercy", "Murray Hill / Gramercy", []],
+  ["flatiron", "Flatiron District", ["Flatiron", "Union Square", "NoMad"]],
+  ["gramercy", "Gramercy", ["Gramercy Park", "Rose Hill"]],
+  ["kips-bay", "Kips Bay", []],
+  ["hudson-yards", "Hudson Yards", []],
+  ["garment-district", "Garment District", ["Koreatown", "Herald Square"]],
+  ["murray-hill", "Murray Hill", []],
   ["hells-kitchen", "Hell's Kitchen", ["Clinton"]],
-  ["midtown", "Midtown", []],
-  ["east-midtown", "East Midtown", []],
+  ["theater-district", "Theater District", ["Times Square", "Theatre District"]],
+  ["midtown-east", "Midtown East", ["Turtle Bay", "Sutton Place", "Tudor City"]],
 
-  ["uws-lower", "Upper West Side (Lower)", ["UWS Lower", "Lower Upper West Side"]],
-  ["ues-lower", "Upper East Side (Lower)", ["UES Lower", "Lower Upper East Side"]],
-  ["uws-upper", "Upper West Side (Upper)", ["UWS Upper", "Upper Upper West Side"]],
-  ["ues-east-harlem", "Upper East Side / East Harlem", ["UES"]],
-  ["morningside-heights", "Columbia / Morningside Heights", []],
-  ["harlem-lower", "Harlem (Lower)", ["Lower Harlem"]],
-  ["el-barrio", "El Barrio / East Harlem", []],
+  ["lincoln-square", "Lincoln Square", ["Columbus Circle"]],
+  ["lenox-hill", "Lenox Hill", []],
+  ["upper-west-side", "Upper West Side", ["UWS"]],
+  ["carnegie-hill", "Carnegie Hill", []],
+  ["yorkville", "Yorkville", []],
+  ["manhattan-valley", "Manhattan Valley", []],
+  ["east-harlem", "East Harlem", ["El Barrio", "Spanish Harlem"]],
 
-  ["manhattanville", "Manhattanville / Hamilton Heights", []],
-  ["harlem-upper", "Harlem (Upper)", ["Upper Harlem"]],
-  ["washington-heights", "Washington Heights", []],
-  ["fort-george", "Fort George / Fort Tryon", []],
+  ["morningside-heights", "Morningside Heights", ["Columbia"]],
+  ["hamilton-heights", "Hamilton Heights", ["Sugar Hill", "Manhattanville"]],
+  ["central-harlem", "Central Harlem", ["Harlem"]],
+  ["washington-heights", "Washington Heights", ["Hudson Heights"]],
+  ["fort-george", "Fort George", ["Fort Tryon"]],
   ["inwood", "Inwood", []],
 
+  // Across the rivers, as the book has them
   ["astoria", "Astoria", []],
   ["long-island-city", "Long Island City", ["LIC"]],
   ["greenpoint", "Greenpoint", []],
@@ -47,9 +60,9 @@ const AREAS: ReadonlyArray<readonly [string, string, string[]]> = [
 ];
 
 /**
- * Beyond the book, which stops at Hoboken and Jersey City. The ten towns are
- * real municipalities; the six Jersey City areas are its neighbourhoods, which
- * have no official boundaries.
+ * Beyond the book, which stops at Hoboken and Jersey City. The towns are real
+ * municipalities; the six Jersey City areas are its neighbourhoods, which have
+ * no official boundaries.
  */
 const NEW_JERSEY: ReadonlyArray<readonly [string, string, string[]]> = [
   ["hoboken", "Hoboken", []],
@@ -74,12 +87,17 @@ const SECTIONS: ReadonlyArray<readonly [string, string, string[]]> = [
     "downtown",
     "Downtown",
     [
+      "battery-park-city",
       "financial-district",
       "tribeca",
-      "city-hall-chinatown",
+      "chinatown",
+      "hudson-square",
+      "soho",
+      "little-italy",
       "lower-east-side",
+      "noho",
       "west-village",
-      "washington-sq",
+      "greenwich-village",
       "east-village",
     ],
   ],
@@ -89,29 +107,40 @@ const SECTIONS: ReadonlyArray<readonly [string, string, string[]]> = [
     [
       "chelsea",
       "flatiron",
-      "murray-hill-gramercy",
+      "gramercy",
+      "kips-bay",
+      "hudson-yards",
+      "garment-district",
+      "murray-hill",
       "hells-kitchen",
-      "midtown",
-      "east-midtown",
+      "theater-district",
+      "midtown-east",
     ],
   ],
   [
     "uptown",
     "Uptown",
     [
-      "uws-lower",
-      "ues-lower",
-      "uws-upper",
-      "ues-east-harlem",
-      "morningside-heights",
-      "harlem-lower",
-      "el-barrio",
+      "lincoln-square",
+      "lenox-hill",
+      "upper-west-side",
+      "carnegie-hill",
+      "yorkville",
+      "manhattan-valley",
+      "east-harlem",
     ],
   ],
   [
-    "way-uptown",
-    "Way Uptown",
-    ["manhattanville", "harlem-upper", "washington-heights", "fort-george", "inwood"],
+    "harlem",
+    "Harlem & Above",
+    [
+      "morningside-heights",
+      "hamilton-heights",
+      "central-harlem",
+      "washington-heights",
+      "fort-george",
+      "inwood",
+    ],
   ],
   [
     "leaving-manhattan",
@@ -157,7 +186,7 @@ const groups: Group[] = SECTIONS.map(([id, name, cardIds]) => ({ id, name, cardI
 const byId = new Map(groups.map((group) => [group.id, group]));
 
 const regions: Group[] = [
-  ["manhattan", "Manhattan", ["downtown", "midtown-section", "uptown", "way-uptown"]],
+  ["manhattan", "Manhattan", ["downtown", "midtown-section", "uptown", "harlem"]],
   ["across-the-rivers", "Across the Rivers", ["leaving-manhattan", "new-jersey"]],
 ].map(([id, name, sectionIds]) => ({
   id: id as string,

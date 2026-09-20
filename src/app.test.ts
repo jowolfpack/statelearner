@@ -580,14 +580,31 @@ describe("the NYC deck", () => {
     chooseNyc();
   });
 
-  it("covers the book's 35 plus the New Jersey additions", () => {
-    expect(nycDeck.cards).toHaveLength(48);
-    const nj = nycDeck.groups.find((g) => g.id === "new-jersey");
-    expect(nj?.cardIds).toHaveLength(15);
-    // Every card belongs to exactly one group.
+  it("covers Manhattan, the outer boroughs and New Jersey", () => {
+    expect(nycDeck.cards).toHaveLength(58);
+    const size = (id: string) =>
+      nycDeck.groups.find((g) => g.id === id)?.cardIds.length ?? 0;
+    expect([size("downtown"), size("midtown-section"), size("uptown"), size("harlem")]).toEqual([
+      12, 10, 7, 6,
+    ]);
+    expect(size("leaving-manhattan")).toBe(8);
+    expect(size("new-jersey")).toBe(15);
+
+    // Every card belongs to exactly one group, and every group id has a map region.
     const grouped = nycDeck.groups.flatMap((g) => g.cardIds);
-    expect(new Set(grouped).size).toBe(48);
-    expect(grouped).toHaveLength(48);
+    expect(grouped).toHaveLength(58);
+    expect(new Set(grouped).size).toBe(58);
+    for (const card of nycDeck.cards) {
+      expect(nycDeck.map?.paths[card.id], card.front).toBeTypeOf("string");
+    }
+  });
+
+  it("drops the book's ambiguous (Upper)/(Lower) labels", () => {
+    const names = nycDeck.cards.map((c) => c.front);
+    expect(names.filter((n) => /\((Upper|Lower)\)/.test(n))).toEqual([]);
+    for (const real of ["Lenox Hill", "Yorkville", "Carnegie Hill", "SoHo", "NoHo"]) {
+      expect(names, real).toContain(real);
+    }
   });
 
   it("swaps in its own map and sections", () => {

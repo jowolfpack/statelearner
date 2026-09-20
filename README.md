@@ -86,3 +86,24 @@ Actions"**. Without that the first deploy fails.
 
 Note that settings and progress live in `localStorage`, which is per-origin, so
 the local copy and the published one keep separate progress.
+
+## NYC Neighborhoods deck
+
+A second deck: 58 areas, asked either way round — a neighborhood is highlighted
+and you type it, or it is named and you click it on the map.
+
+Manhattan uses the names New Yorkers actually use rather than *Not For
+Tourists*' rows, which carried labels like "Upper East Side (Lower)" whose
+halves nothing distinguishes. Across the rivers the book's grouping is kept.
+New Jersey goes beyond the book entirely.
+
+Boundaries come from real data wherever it exists: NYC Open Data for the
+boroughs, OpenStreetMap for the New Jersey municipalities. Only Manhattan and
+Jersey City's six neighbourhoods are cut by hand, because no dataset has
+boundaries at that granularity — Manhattan's are rectangles in the street grid,
+declared in `scripts/build-nyc-map.mjs` as metres from Fifth Avenue and 42nd
+Street.
+
+Three assertions guard `npm run build:nyc-map`: every area must contain a real
+point inside it, no two areas may overlap, and no area may pick up land across
+a river.

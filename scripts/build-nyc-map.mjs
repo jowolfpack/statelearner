@@ -61,96 +61,122 @@ function latLonBox([latA, lonA], [latB, lonB]) {
 }
 
 /**
- * Reference points on real avenues and cross-streets. Because the cuts run in
- * the grid frame, every point on one avenue shares a `u`, and every point on
- * one cross-street shares a `v` -- so one point names the whole line.
+ * The grid, in metres from Fifth Avenue and 42nd Street, measured off real
+ * intersections. `u` runs east across the avenues, `v` north along them.
+ * Everything Manhattan is declared against these, so a boundary moves by
+ * changing one number.
  */
-const AVENUE_POINTS = {
-  eighth: [40.7573, -73.9897],
-  seventh: [40.756, -73.9871],
-  sixth: [40.7546, -73.9847],
-  fifth: [40.7532, -73.9822],
-  park: [40.7519, -73.9772],
-  third: [40.7505, -73.9722],
+const ORIGIN = rot([-73.9822, 40.7532]);
+const U = {
+  farWest: -3000,
+  tenth: -1331,
+  ninth: -1067,
+  eighth: -771,
+  seventh: -510,
+  sixth: -259,
+  fifth: 0,
+  madison: 200,
+  park: 440,
+  lex: 640,
+  third: 886,
+  second: 1101,
+  first: 1307,
+  farEast: 3000,
+  // Downtown runs on its own angle, so these are cuts, not avenues.
+  westSide: -450,
+  broadway: 150,
+  bowery: 1100,
+  lafayette: 481,
+  villageWest: -380,
+  parkSouth: 350,
+  lexSouth: 900,
+  eighthSouth: -900,
+  seventhSouth: -300,
+  harlemWest: -700,
+  fifthNorth: 300,
+};
+const V = {
+  south: -7000,
+  chambers: -4850,
+  canal: -4125,
+  houston: -3234,
+  astor: -2685,
+  fourteenth: -2019,
+  twentyThird: -1479,
+  thirtyFourth: -607,
+  fortySecond: 96,
+  fiftyNinth: 1430,
+  seventySecond: 2703,
+  seventyNinth: 3396,
+  ninetySixth: 4620,
+  oneTenth: 5491,
+  oneTwentyFifth: 6590,
+  oneFortyFifth: 8351,
+  oneEightyFirst: 11348,
+  dyckman: 13062,
+  north: 16000,
 };
 
-const STREET_POINTS = {
-  chambers: [40.7148, -74.0075],
-  houston: [40.7255, -73.9955],
-  fourteenth: [40.7367, -73.9925],
-  thirtyFourth: [40.7484, -73.9857],
-  fiftyNinth: [40.7644, -73.9737],
-  eightySixth: [40.7794, -73.9594],
-  oneTenth: [40.796, -73.949],
-  oneTwentyFifth: [40.8045, -73.9422],
-  oneFortyFifth: [40.8202, -73.9365],
-  oneEightyFirst: [40.85, -73.9345],
-  dyckman: [40.8645, -73.927],
-};
-
-const U = Object.fromEntries(
-  Object.entries(AVENUE_POINTS).map(([k, [lat, lon]]) => [k, rot([lon, lat])[0]]),
-);
-const V = Object.fromEntries(
-  Object.entries(STREET_POINTS).map(([k, [lat, lon]]) => [k, rot([lon, lat])[1]]),
-);
-// Blocks that run to the water are given edges well past it; land does the rest.
-U.farWest = Math.min(...Object.values(U)) - 6000;
-U.farEast = Math.max(...Object.values(U)) + 6000;
-V.southEnd = Math.min(...Object.values(V)) - 6000;
-V.northEnd = Math.max(...Object.values(V)) + 6000;
-
-/**
- * A grid line, named or given as a [lat, lon] point on it. Named lines are
- * measured uptown; extended far enough south they drift off the streets they
- * are named after, because downtown does not follow the Commissioners' grid.
- * Blocks down there name their own points instead.
- */
-const uOf = (ref) => (Array.isArray(ref) ? rot([ref[1], ref[0]])[0] : U[ref]);
-const vOf = (ref) => (Array.isArray(ref) ? rot([ref[1], ref[0]])[1] : V[ref]);
-
-/** A block bounded by two cross-streets and two avenues. */
+/** A block bounded by two cross-streets and two avenues, by name. */
 function gridBlock(south, north, west, east) {
-  const [u0, u1] = [uOf(west), uOf(east)];
-  const [v0, v1] = [vOf(south), vOf(north)];
-  if (u0 === undefined || u1 === undefined || v0 === undefined || v1 === undefined) {
-    throw new Error(`Unknown grid line in a block definition`);
+  const u0 = ORIGIN[0] + U[west];
+  const u1 = ORIGIN[0] + U[east];
+  const v0 = ORIGIN[1] + V[south];
+  const v1 = ORIGIN[1] + V[north];
+  if ([u0, u1, v0, v1].some(Number.isNaN)) {
+    throw new Error(`Unknown grid line in ${south}/${north}/${west}/${east}`);
   }
   return [
     [[unrot([u0, v0]), unrot([u1, v0]), unrot([u1, v1]), unrot([u0, v1]), unrot([u0, v0])]],
   ];
 }
 
-/** Manhattan, as the book's rows: [id, south street, north street, west ave, east ave]. */
+/**
+ * Manhattan, by the names New Yorkers use rather than the book's rows.
+ * Order matters: each block is trimmed against everything already claimed, so
+ * a small area listed early keeps its ground and the larger one around it
+ * takes the remainder.
+ */
 const MANHATTAN = [
-  ["financial-district", "southEnd", "chambers", "farWest", "farEast"],
-  // Below Houston the streets do not follow the uptown grid, so these name
-  // points on the dividing streets themselves rather than uptown avenues.
-  ["tribeca", "chambers", "houston", "farWest", [40.7215, -74.0045]],
-  ["city-hall-chinatown", "chambers", "houston", [40.7215, -74.0045], [40.717, -73.9935]],
-  ["lower-east-side", "chambers", "houston", [40.717, -73.9935], "farEast"],
-  ["west-village", "houston", "fourteenth", "farWest", [40.7305, -74.0025]],
-  ["washington-sq", "houston", "fourteenth", [40.7305, -74.0025], [40.7275, -73.989]],
-  ["east-village", "houston", "fourteenth", [40.7275, -73.989], "farEast"],
-  ["chelsea", "fourteenth", "thirtyFourth", "farWest", "sixth"],
-  ["flatiron", "fourteenth", "thirtyFourth", "sixth", [40.7395, -73.986]],
-  ["murray-hill-gramercy", "fourteenth", "thirtyFourth", [40.7395, -73.986], "farEast"],
-  ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "eighth"],
-  ["midtown", "thirtyFourth", "fiftyNinth", "eighth", "park"],
-  ["east-midtown", "thirtyFourth", "fiftyNinth", "park", "farEast"],
-  // Central Park fills eighth..fifth between 59th and 110th, and is cut out below.
-  ["uws-lower", "fiftyNinth", "eightySixth", "farWest", "eighth"],
-  ["ues-lower", "fiftyNinth", "eightySixth", "fifth", "farEast"],
-  ["uws-upper", "eightySixth", "oneTenth", "farWest", "eighth"],
-  ["ues-east-harlem", "eightySixth", "oneTenth", "fifth", "farEast"],
-  ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "eighth"],
-  ["harlem-lower", "oneTenth", "oneTwentyFifth", "eighth", [40.8005, -73.938]],
-  ["el-barrio", "oneTenth", "oneTwentyFifth", [40.8005, -73.938], "farEast"],
-  ["manhattanville", "oneTwentyFifth", "oneFortyFifth", "farWest", "eighth"],
-  ["harlem-upper", "oneTwentyFifth", "oneFortyFifth", "eighth", "farEast"],
+  // Downtown
+  ["battery-park-city", "south", "chambers", "farWest", "westSide"],
+  ["financial-district", "south", "chambers", "westSide", "farEast"],
+  ["tribeca", "chambers", "canal", "farWest", "broadway"],
+  ["chinatown", "chambers", "canal", "broadway", "farEast"],
+  ["hudson-square", "canal", "houston", "farWest", "westSide"],
+  ["soho", "canal", "houston", "westSide", "lafayette"],
+  ["little-italy", "canal", "houston", "lafayette", "bowery"],
+  ["lower-east-side", "canal", "houston", "bowery", "farEast"],
+  ["noho", "houston", "astor", "broadway", "bowery"],
+  ["west-village", "houston", "fourteenth", "farWest", "villageWest"],
+  ["greenwich-village", "houston", "fourteenth", "villageWest", "broadway"],
+  ["east-village", "houston", "fourteenth", "broadway", "farEast"],
+  // Midtown
+  ["chelsea", "fourteenth", "thirtyFourth", "farWest", "villageWest"],
+  ["flatiron", "fourteenth", "thirtyFourth", "villageWest", "parkSouth"],
+  ["gramercy", "fourteenth", "thirtyFourth", "parkSouth", "lexSouth"],
+  ["kips-bay", "fourteenth", "thirtyFourth", "lexSouth", "farEast"],
+  ["hudson-yards", "thirtyFourth", "fortySecond", "farWest", "eighthSouth"],
+  ["garment-district", "thirtyFourth", "fortySecond", "eighthSouth", "parkSouth"],
+  ["murray-hill", "thirtyFourth", "fortySecond", "parkSouth", "farEast"],
+  ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "eighthSouth"],
+  ["theater-district", "fortySecond", "fiftyNinth", "eighthSouth", "seventhSouth"],
+  ["midtown-east", "fortySecond", "fiftyNinth", "seventhSouth", "farEast"],
+  // Uptown -- Central Park is cut back out of these below
+  ["lincoln-square", "fiftyNinth", "seventySecond", "farWest", "seventhSouth"],
+  ["lenox-hill", "fiftyNinth", "seventyNinth", "fifthNorth", "farEast"],
+  ["upper-west-side", "seventySecond", "ninetySixth", "farWest", "seventhSouth"],
+  ["carnegie-hill", "seventyNinth", "ninetySixth", "fifthNorth", "lexSouth"],
+  ["yorkville", "seventyNinth", "ninetySixth", "lexSouth", "farEast"],
+  ["manhattan-valley", "ninetySixth", "oneTenth", "farWest", "seventhSouth"],
+  ["east-harlem", "ninetySixth", "oneTwentyFifth", "fifthNorth", "farEast"],
+  // Harlem and above
+  ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "harlemWest"],
+  ["hamilton-heights", "oneTwentyFifth", "oneFortyFifth", "farWest", "harlemWest"],
+  ["central-harlem", "oneTenth", "oneFortyFifth", "harlemWest", "farEast"],
   ["washington-heights", "oneFortyFifth", "oneEightyFirst", "farWest", "farEast"],
   ["fort-george", "oneEightyFirst", "dyckman", "farWest", "farEast"],
-  ["inwood", "dyckman", "northEnd", "farWest", "farEast"],
+  ["inwood", "dyckman", "north", "farWest", "farEast"],
 ];
 
 /**
@@ -415,45 +441,56 @@ for (const [id, shape, land] of shapes) {
  * is easiest to get wrong across the rivers, where the grid does not apply.
  */
 const LANDMARKS = {
-  "financial-district": [40.7075, -74.0113],
-  tribeca: [40.7163, -74.0086],
-  "city-hall-chinatown": [40.7157, -73.9971],
-  "lower-east-side": [40.7185, -73.9865],
-  "west-village": [40.7358, -74.0036],
-  "washington-sq": [40.7295, -73.9965],
-  "east-village": [40.7265, -73.9815],
-  chelsea: [40.7465, -74.0014],
+  // Manhattan, from OpenStreetMap's own neighbourhood records.
+  "battery-park-city": [40.711, -74.0169],
+  "financial-district": [40.7077, -74.0093],
+  tribeca: [40.7154, -74.0093],
+  chinatown: [40.7165, -73.9963],
+  "hudson-square": [40.7268, -74.008],
+  soho: [40.7229, -73.9988],
+  "little-italy": [40.7193, -73.9982],
+  "lower-east-side": [40.7159, -73.9868],
+  noho: [40.7259, -73.994],
+  "west-village": [40.7342, -74.0056],
+  // OSM's Greenwich Village record is a 7th Avenue South address, which is
+  // really the West Village; Washington Square is the honest centre.
+  "greenwich-village": [40.7308, -73.9973],
+  "east-village": [40.7293, -73.9874],
+  chelsea: [40.7465, -74.0015],
   flatiron: [40.7411, -73.9897],
-  // Gramercy/Kips Bay: Murray Hill proper runs north of 34th, but the book puts
-  // this area in the 14th-34th row, so the landmark is where the two agree.
-  "murray-hill-gramercy": [40.74, -73.98],
-  "hells-kitchen": [40.7621, -73.9918],
-  midtown: [40.7549, -73.9840],
-  "east-midtown": [40.7546, -73.9707],
-  "uws-lower": [40.7769, -73.9814],
-  "ues-lower": [40.7700, -73.9600],
-  "uws-upper": [40.7910, -73.9720],
-  "ues-east-harlem": [40.7880, -73.9480],
-  "morningside-heights": [40.8075, -73.9626],
-  // Around 121st: Lower Harlem reaches past 125th in life, not in the book's row.
-  "harlem-lower": [40.806, -73.948],
-  "el-barrio": [40.7957, -73.9389],
-  manhattanville: [40.8190, -73.9540],
-  "harlem-upper": [40.8180, -73.9400],
-  "washington-heights": [40.8417, -73.9393],
+  gramercy: [40.738, -73.9859],
+  "kips-bay": [40.7395, -73.9771],
+  "hudson-yards": [40.7559, -74.0005],
+  "garment-district": [40.7537, -73.9905],
+  "murray-hill": [40.7482, -73.9788],
+  "hells-kitchen": [40.7644, -73.9924],
+  "theater-district": [40.758, -73.9855],
+  "midtown-east": [40.7535, -73.9689],
+  "lincoln-square": [40.7723, -73.9844],
+  "lenox-hill": [40.7664, -73.959],
+  "upper-west-side": [40.787, -73.9754],
+  "carnegie-hill": [40.7842, -73.9543],
+  yorkville: [40.778, -73.9482],
+  "manhattan-valley": [40.7998, -73.9678],
+  "east-harlem": [40.7947, -73.9425],
+  "morningside-heights": [40.81, -73.9625],
+  "hamilton-heights": [40.8241, -73.9501],
+  "central-harlem": [40.8079, -73.9455],
+  "washington-heights": [40.8402, -73.9402],
   "fort-george": [40.8593, -73.9297],
-  inwood: [40.8677, -73.9212],
+  inwood: [40.8693, -73.9205],
+  // Across the rivers
   astoria: [40.7644, -73.9235],
   "long-island-city": [40.7447, -73.9485],
   greenpoint: [40.7304, -73.9512],
   williamsburg: [40.7143, -73.9566],
   "brooklyn-heights": [40.6959, -73.9937],
   "fort-greene": [40.6892, -73.9742],
-  bococa: [40.6860, -73.9970],
-  "park-slope": [40.6710, -73.9780],
+  bococa: [40.686, -73.997],
+  "park-slope": [40.671, -73.978],
+  // New Jersey: computed interior points, since a bounding-box centre on a
+  // narrow waterfront strip lands in the river.
   hoboken: [40.7429, -74.0337],
-  // Waterfront towns are narrow strips, so these sit inland of the shoreline
-  // rather than at a bounding-box centre, which would land in the river.
   weehawken: [40.7673, -74.0232],
   "union-city": [40.7667, -74.0303],
   "west-new-york": [40.7877, -74.0159],
@@ -469,6 +506,7 @@ const LANDMARKS = {
   "jc-bergen-lafayette": [40.7075, -74.072],
   "jc-greenville": [40.6844, -74.0859],
 };
+
 
 const dot = ([lat, lon]) => {
   const e = 2e-4;
