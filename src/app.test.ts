@@ -598,7 +598,8 @@ describe("the NYC deck", () => {
     // The land silhouette for context, and Central Park as a hole in the grid.
     expect(document.querySelector(".landmark-land")).not.toBeNull();
     expect(document.querySelector(".landmark-central-park")).not.toBeNull();
-    expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(2);
+    expect(document.querySelector(".landmark-prospect-park")).not.toBeNull();
+    expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(3);
   });
 
   it("puts its tall map beside the question", () => {

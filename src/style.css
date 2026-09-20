@@ -193,7 +193,8 @@ select {
   stroke-width: 1;
 }
 
-.landmark-central-park {
+.landmark-central-park,
+.landmark-prospect-park {
   fill: var(--ok);
   opacity: 0.4;
 }

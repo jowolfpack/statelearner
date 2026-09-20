@@ -43,27 +43,6 @@ const rot = ([lon, lat]) => {
 
 const unrot = ([u, v]) => [(u * COS + v * SIN) / M_LON, (-u * SIN + v * COS) / M_LAT];
 
-/** A grid-aligned quad spanning two corners, each given as [lat, lon]. */
-function block([latA, lonA], [latB, lonB]) {
-  const a = rot([lonA, latA]);
-  const b = rot([lonB, latB]);
-  const u0 = Math.min(a[0], b[0]);
-  const u1 = Math.max(a[0], b[0]);
-  const v0 = Math.min(a[1], b[1]);
-  const v1 = Math.max(a[1], b[1]);
-  // Two corners lying along one grid axis collapse the block to a sliver, which
-  // then silently clips away to nothing. Catch it here instead.
-  if (u1 - u0 < 120 || v1 - v0 < 120) {
-    throw new Error(
-      `Block corners are nearly parallel to the grid: ${Math.round(u1 - u0)}m across ` +
-        `by ${Math.round(v1 - v0)}m along. Pick corners that differ on both axes.`,
-    );
-  }
-  return [
-    [[unrot([u0, v0]), unrot([u1, v0]), unrot([u1, v1]), unrot([u0, v1]), unrot([u0, v0])]],
-  ];
-}
-
 /** An ordinary lat/lon rectangle. The viewport has no reason to follow the grid. */
 function latLonBox([latA, lonA], [latB, lonB]) {
   const [lat0, lat1] = [Math.min(latA, latB), Math.max(latA, latB)];
@@ -201,18 +180,42 @@ const NJ_TOWNS = [
   "cliffside-park",
 ];
 
-/** Across the rivers, where the Manhattan grid does not apply: corner pairs. */
-const OUTER = [
-  // A chain down the waterfront, then inland. Each is trimmed against whatever
-  // the ones above it already claimed, so the order here is the book's.
-  ["astoria", [40.756, -73.94], [40.79, -73.895]],
-  ["long-island-city", [40.74, -73.96], [40.762, -73.925]],
-  ["greenpoint", [40.721, -73.962], [40.7395, -73.933]],
-  ["williamsburg", [40.7, -73.972], [40.725, -73.933]],
-  ["brooklyn-heights", [40.689, -74.01], [40.705, -73.985]],
-  ["fort-greene", [40.68, -73.985], [40.7, -73.96]],
-  ["bococa", [40.665, -74.025], [40.689, -73.988]],
-  ["park-slope", [40.658, -73.995], [40.684, -73.965]],
+/**
+ * Across the rivers the book's areas line up well with NYC Open Data's own
+ * polygons, so each is a union of those rather than a rectangle: real
+ * boundaries, the same as the New Jersey municipalities.
+ */
+const OUTER_PARTS = [
+  [
+    "astoria",
+    [
+      "Astoria (Central)",
+      "Astoria (North)-Ditmars-Steinway",
+      "Astoria (East)-Woodside (North)",
+      "Astoria Park",
+      "Old Astoria-Hallets Point",
+    ],
+  ],
+  [
+    "long-island-city",
+    [
+      "Long Island City-Hunters Point",
+      "Queensbridge-Ravenswood-Dutch Kills",
+      "Sunnyside Yards (North)",
+      "Sunnyside Yards (South)",
+    ],
+  ],
+  ["greenpoint", ["Greenpoint"]],
+  ["williamsburg", ["Williamsburg", "South Williamsburg", "East Williamsburg"]],
+  // Boerum Hill belongs to BoCoCa in the book, but the city merges it into
+  // Downtown Brooklyn, and splitting it would mean inventing a line again.
+  [
+    "brooklyn-heights",
+    ["Brooklyn Heights", "Downtown Brooklyn-DUMBO-Boerum Hill", "Brooklyn Navy Yard"],
+  ],
+  ["fort-greene", ["Fort Greene", "Clinton Hill"]],
+  ["bococa", ["Carroll Gardens-Cobble Hill-Gowanus-Red Hook"]],
+  ["park-slope", ["Park Slope", "Prospect Heights", "Windsor Terrace-South Slope"]],
 ];
 
 /**
@@ -354,6 +357,16 @@ const jerseyCityLand = townLand("jersey-city");
 // The whole Jersey bank is drawn as context, not just the named areas.
 const silhouette = polygonClipping.union(nycLand, njMask);
 
+/** The union of named city polygons, as one shape. */
+function ntaShape(names) {
+  const parts = names.map((name) => {
+    const found = nta.features.filter((f) => f.properties.ntaname === name);
+    if (found.length === 0) throw new Error(`No city polygon named "${name}"`);
+    return clean(found.flatMap((f) => toMultiPolygon(f.geometry)));
+  });
+  return parts.reduce((all, part) => polygonClipping.union(all, part));
+}
+
 const park = polygonClipping.intersection(
   clean(
     nta.features
@@ -364,10 +377,15 @@ const park = polygonClipping.intersection(
 );
 if (park.length === 0) throw new Error("Central Park not found in the source");
 
+// Prospect Park is labelled on the book's map too, so it gets the same
+// treatment: drawn as a landmark and cut out of the areas around it.
+const prospect = polygonClipping.intersection(ntaShape(["Prospect Park"]), VIEWPORT);
+if (prospect.length === 0) throw new Error("Prospect Park not found in the source");
+
 const regions = [];
 const shapes = [
   ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e), manhattanIsland]),
-  ...OUTER.map(([id, a, b]) => [id, block(a, b), outerLand]),
+  ...OUTER_PARTS.map(([id, names]) => [id, ntaShape(names), outerLand]),
   // Whole municipalities: their own boundary is the shape, land does the rest.
   ["hoboken", clean(NJ.polygons.hoboken), njMask],
   ...NJ_TOWNS.map((id) => [id, clean(NJ.polygons[id]), njMask]),
@@ -384,7 +402,7 @@ for (const [id, shape, land] of shapes) {
   const onLand = polygonClipping.intersection(land, shape);
   const unclaimed =
     claimed.length === 0 ? onLand : polygonClipping.difference(onLand, claimed);
-  const piece = polygonClipping.difference(unclaimed, park);
+  const piece = polygonClipping.difference(unclaimed, park, prospect);
   if (piece.length === 0) throw new Error(`${id} does not land on any land`);
   regions.push([id, piece]);
   claimed = claimed.length === 0 ? piece : polygonClipping.union(claimed, piece);
@@ -512,6 +530,7 @@ const projectAll = (multi) => multi.map((poly) => poly.map((ring) => ring.map(pr
 const projected = regions.map(([id, geom]) => [id, projectAll(geom)]);
 const silhouetteXY = projectAll(silhouette);
 const parkXY = projectAll(park);
+const prospectXY = projectAll(prospect);
 
 const every = [...projected.flatMap(([, g]) => g), ...silhouetteXY].flat(2);
 const minX = Math.min(...every.map(([x]) => x));
@@ -575,6 +594,7 @@ ${paths.map(([id, d]) => `  ${JSON.stringify(id)}: ${JSON.stringify(d)},`).join(
 export const NYC_LANDMARKS: Record<string, string> = {
   land: ${JSON.stringify(draw(silhouetteXY))},
   "central-park": ${JSON.stringify(draw(parkXY))},
+  "prospect-park": ${JSON.stringify(draw(prospectXY))},
 };
 `,
   "utf-8",
