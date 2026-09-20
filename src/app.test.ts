@@ -49,10 +49,14 @@ function activeStateId(): string | null {
   return document.querySelector(".us-map-state.is-active")?.getAttribute("d") ?? null;
 }
 
-/** Opens the first group and skips to the drill. */
+/** Opens the first group. Groups now start in the drill. */
 function openFirstGroupAndDrill(): void {
   document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
-  byId<HTMLButtonElement>("study-skip").click();
+}
+
+/** Opens the first group via its opt-in Study button. */
+function openFirstGroupForStudy(): void {
+  document.querySelectorAll<HTMLButtonElement>(".group-study")[0]?.click();
 }
 
 beforeEach(async () => {
@@ -72,8 +76,19 @@ describe("boot", () => {
 });
 
 describe("study pass", () => {
-  it("opens a group into study, showing both sides", () => {
+  it("is not the default -- picking a group drills straight away", () => {
     document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
+    expect(visible("drill")).toBe(true);
+    expect(visible("study")).toBe(false);
+    expect(byId("prompt").textContent).toBeTruthy();
+  });
+
+  it("offers a Study button per group", () => {
+    expect(document.querySelectorAll(".group-study")).toHaveLength(9);
+  });
+
+  it("opens a group into study, showing both sides", () => {
+    openFirstGroupForStudy();
     expect(visible("study")).toBe(true);
     expect(visible("picker")).toBe(false);
     expect(byId("title").textContent).toBe("New England");
@@ -82,7 +97,7 @@ describe("study pass", () => {
   });
 
   it("walks every card, then starts the drill", () => {
-    document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
+    openFirstGroupForStudy();
     for (let i = 0; i < 6; i++) byId<HTMLButtonElement>("study-next").click();
     expect(visible("drill")).toBe(true);
     expect(visible("study")).toBe(false);

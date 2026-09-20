@@ -20,12 +20,14 @@ npm run build    # static output in dist/
 ## How it works
 
 States are split into the nine US Census divisions, 3-8 states each. You learn
-one group at a time:
+one group at a time.
 
-1. **Study** — click through every state in the group with its capital shown.
-2. **Drill** — a state appears, you type the capital. Right, and you move on.
-   Wrong, and it shows you the correct answer and puts you back at the start of
-   the group, reshuffled.
+Picking a group starts the **drill** straight away: a state appears, you type
+the capital. Right, and you move on. Wrong, and it shows you the correct answer
+and puts you back at the start of the group, reshuffled.
+
+For a group you have not seen before, the **Study** button next to it walks you
+through every state with its capital shown first, then drops you into the drill.
 
 A group is cleared only by getting every state right in one unbroken run. There
 is no restart limit on purpose.

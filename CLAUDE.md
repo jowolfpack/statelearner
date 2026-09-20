@@ -38,12 +38,16 @@ nothing else. The `[state, capital, postal code]` table lives in
 map generator must agree on the card ids.
 
 **The learning loop (`src/group-session.ts`)** — pure, DOM-free, and the part
-worth testing. A group is learned in two phases:
+worth testing. A group has two phases:
 
-- *Study*: every card in deck order with both sides visible.
+- *Study*: every card in deck order with both sides visible. **Opt-in** — reached
+  only via the per-group "Study" button in the picker (`skipStudy: false`).
 - *Drill*: cards in shuffled order. Correct advances; **wrong reveals the answer
   and restarts the whole group with a fresh shuffle.** A group clears only on an
   unbroken run.
+
+Picking a group goes straight to the drill; that is the default and the point of
+the app.
 
 This mechanic is deliberate and load-bearing. There is intentionally no restart
 limit, no way back to Study once the drill starts, and reshuffling on every

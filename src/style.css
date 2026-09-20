@@ -169,8 +169,15 @@ select {
   gap: 8px;
 }
 
+.group-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
 .group {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -191,6 +198,24 @@ select {
 .group.is-cleared .group-name::before {
   content: "\2713\00a0";
   color: var(--ok);
+}
+
+.group-study {
+  flex: none;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.group-study:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  filter: none;
 }
 
 .group-count {

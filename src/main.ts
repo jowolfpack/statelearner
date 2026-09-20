@@ -82,11 +82,11 @@ function renderPicker(): void {
   const cleared = progress.cleared();
   ui.groupList.replaceChildren(
     ...deck.groups.map((group) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "group";
-      if (cleared.has(group.id)) button.classList.add("is-cleared");
-      button.addEventListener("click", () => startGroup(group));
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "group";
+      if (cleared.has(group.id)) open.classList.add("is-cleared");
+      open.addEventListener("click", () => startGroup(group));
 
       const name = document.createElement("span");
       name.className = "group-name";
@@ -98,10 +98,19 @@ function renderPicker(): void {
         ? `${group.cardIds.length} · cleared`
         : `${group.cardIds.length}`;
 
-      button.append(name, count);
+      open.append(name, count);
+
+      // Study is the opt-in path, so it gets its own quieter control.
+      const study = document.createElement("button");
+      study.type = "button";
+      study.className = "group-study";
+      study.textContent = "Study";
+      study.title = `Read through ${group.name} with the capitals shown, then drill`;
+      study.addEventListener("click", () => startGroup(group, true));
 
       const item = document.createElement("li");
-      item.append(button);
+      item.className = "group-row";
+      item.append(open, study);
       return item;
     }),
   );
@@ -183,11 +192,11 @@ function renderMap(): void {
 
 // -- Flow ----------------------------------------------------------------
 
-function startGroup(group: Group): void {
+function startGroup(group: Group, studyFirst = false): void {
   session = new GroupSession(deck, group, {
     direction: settings.direction(),
-    // A group you have cleared before does not need the study pass again.
-    skipStudy: progress.cleared().has(group.id),
+    // Drilling is the point, so it is the default; study is opt-in per group.
+    skipStudy: !studyFirst,
   });
   render();
 }
@@ -237,8 +246,9 @@ ui.nextGroup.addEventListener("click", () => {
 ui.direction.addEventListener("change", () => {
   const direction = ui.direction.value as Direction;
   settings.setDirection(direction);
-  // Switching direction mid-group is a different exercise, so restart it.
-  if (session !== null) startGroup(session.group);
+  // Switching direction mid-group is a different exercise, so restart it --
+  // staying in whichever phase you were already in.
+  if (session !== null) startGroup(session.group, session.phase === "study");
   else render();
 });
 
