@@ -310,11 +310,23 @@ describe("all 50 states", () => {
 describe("pronunciation audio", () => {
   const speakers = () => document.querySelectorAll(".speak");
 
-  /** What the engine should actually be handed: the respelling, or the name. */
+  /**
+   * What the engine should actually be handed for a word on screen: its
+   * respelling if it has one, else the name itself. Tests must never compare
+   * against the written form -- the drill order is genuinely random, so whether
+   * an overridden name comes up is luck.
+   */
+  function spokenFor(written: string): string {
+    const card = usStatesDeck.cards.find((c) => c.front === written || c.back === written);
+    if (card === undefined) throw new Error(`No card for "${written}"`);
+    return card.front === written
+      ? (card.frontSpoken ?? card.front)
+      : (card.backSpoken ?? card.back);
+  }
+
+  /** The spoken form of a state's capital. */
   function spokenCapitalFor(state: string): string {
-    const card = usStatesDeck.cards.find((c) => c.front === state);
-    if (card === undefined) throw new Error(`No card for "${state}"`);
-    return card.backSpoken ?? card.back;
+    return spokenFor(capitalFor(state));
   }
 
   function setDirection(value: string): void {
@@ -360,7 +372,7 @@ describe("pronunciation audio", () => {
     expect(spoken).toEqual([]);
 
     document.querySelector<HTMLButtonElement>("#prompt-row .speak")?.click();
-    expect(spoken).toEqual([prompt]);
+    expect(spoken).toEqual([spokenFor(prompt)]);
   });
 
   it("offers a speaker for the prompt and, once graded, the answer", () => {
@@ -382,7 +394,7 @@ describe("pronunciation audio", () => {
     expect(byId("prompt-label").textContent).toBe("Capital");
     expect(speakers()).toHaveLength(1);
     document.querySelector<HTMLButtonElement>("#prompt-row .speak")?.click();
-    expect(spoken).toEqual([prompt]);
+    expect(spoken).toEqual([spokenFor(prompt)]);
 
     answer("wrong");
     expect(document.querySelector("#feedback .speak")).not.toBeNull();
