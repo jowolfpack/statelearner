@@ -190,6 +190,33 @@ function clean(multi) {
   return multi.map((poly) => poly.map((ring) => ring.map(([x, y]) => [r(x), r(y)])));
 }
 
+function ringArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1]);
+  }
+  return Math.abs(sum / 2);
+}
+
+/**
+ * The single biggest polygon. Manhattan borough also contains Governors,
+ * Ellis, Liberty, Randall's and Roosevelt Islands plus Marble Hill, none of
+ * which the book names -- and a block cut against them produces stray shapes
+ * floating in the harbour.
+ */
+function largestPolygon(multi) {
+  let best = null;
+  let bestArea = -1;
+  for (const polygon of multi) {
+    const area = ringArea(polygon[0]);
+    if (area > bestArea) {
+      bestArea = area;
+      best = polygon;
+    }
+  }
+  return best === null ? [] : [best];
+}
+
 function bboxOf(multi) {
   const pts = multi.flat(2);
   return [
@@ -223,7 +250,16 @@ const response = await fetch(SOURCE);
 if (!response.ok) throw new Error(`${SOURCE} -> HTTP ${response.status}`);
 const nta = await response.json();
 
-const nycLand = unionWithin(nta.features, VIEWPORT);
+const inBorough = (name) => nta.features.filter((f) => f.properties.boroname === name);
+
+// Each set of blocks is cut against its own land, never against all of it.
+const manhattanIsland = largestPolygon(unionWithin(inBorough("Manhattan"), VIEWPORT));
+const outerLand = unionWithin([...inBorough("Brooklyn"), ...inBorough("Queens")], VIEWPORT);
+// Staten Island is out of frame; the Bronx is kept as context to the north.
+const nycLand = unionWithin(
+  [...inBorough("Manhattan"), ...inBorough("Brooklyn"), ...inBorough("Queens"), ...inBorough("Bronx")],
+  VIEWPORT,
+);
 const njPieces = ["hoboken", "jersey-city"].map((id) =>
   polygonClipping.intersection(clean(NJ.polygons[id]), VIEWPORT),
 );
@@ -241,13 +277,13 @@ if (park.length === 0) throw new Error("Central Park not found in the source");
 
 const regions = [];
 const shapes = [
-  ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e)]),
-  ...OUTER.map(([id, a, b]) => [id, block(a, b)]),
+  ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e), manhattanIsland]),
+  ...OUTER.map(([id, a, b]) => [id, block(a, b), outerLand]),
 ];
-for (const [id, shape] of shapes) {
+for (const [id, shape, land] of shapes) {
   // Cut the block out of real land, then take the park back out, so Central
   // Park reads as a hole in the grid rather than being paved over.
-  const onLand = polygonClipping.intersection(nycLand, shape);
+  const onLand = polygonClipping.intersection(land, shape);
   const piece = polygonClipping.difference(onLand, park);
   if (piece.length === 0) throw new Error(`${id} does not land on any land`);
   regions.push([id, piece]);
@@ -258,6 +294,17 @@ for (const [index, id] of ["hoboken", "jersey-city"].entries()) {
   const piece = njPieces[index];
   if (piece.length === 0) throw new Error(`${id} fell outside the viewport`);
   regions.push([id, piece]);
+}
+
+// A Manhattan block must never pick up land across a river: cutting against the
+// wrong landmass is what put Governors Island inside the Financial District.
+for (const [id, , land] of shapes) {
+  const other = land === manhattanIsland ? outerLand : manhattanIsland;
+  const region = regions.find(([regionId]) => regionId === id)?.[1] ?? [];
+  const strays = polygonClipping.intersection(region, other);
+  if (strays.length > 0) {
+    throw new Error(`${id} picked up land from the wrong side of the water`);
+  }
 }
 
 // Project planar-Mercator by hand. d3-geo treats polygons as spherical, where a
