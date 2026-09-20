@@ -15,6 +15,12 @@ npm run build                        # typecheck, then static build into dist/
 npm run build:map                    # regenerate src/data/us-map.ts (needs network)
 ```
 
+`start.cmd` is the double-click entry point (also wired to a Desktop shortcut):
+it installs if needed, then runs `npm run dev`, which opens a browser by itself
+via `server.open` in `vite.config.ts`. Batch files are pinned to CRLF in
+`.gitattributes` -- cmd.exe can mis-parse labels in LF-only files, so do not
+"normalise" them.
+
 Note that `vitest run … | tail` masks the exit code — check `$?` before the pipe,
 or redirect to a file, when you need to know whether a run actually passed.
 
@@ -92,3 +98,5 @@ not a file one. The forks pool times out starting a jsdom worker on Windows, so
 - `verbatimModuleSyntax` is on: import types with `import type`.
 - `vite.config.ts` sets `base: "./"` so `dist/` works from any subpath.
 - UI text is English, always, including when the request was written in German.
+- Pushing to `main` deploys to GitHub Pages (`.github/workflows/deploy.yml`).
+  `base: "./"` is what makes the build work from the Pages subpath; leave it.

@@ -2,9 +2,17 @@
 
 A drill site for memorising the 50 US states and their capitals.
 
+## Running it
+
+Double-click **`start.cmd`** (or the StateLearner shortcut on the Desktop). It
+installs dependencies if they are missing, starts the dev server and opens the
+browser. Closing the console window stops it.
+
+From a terminal:
+
 ```sh
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # starts and opens http://localhost:5173
 npm test
 npm run build    # static output in dist/
 ```
@@ -39,3 +47,15 @@ toggle and cleared groups are all remembered locally.
 [us-atlas](https://github.com/topojson/us-atlas) state boundaries (US Census
 Bureau cartographic files) and committed, so nothing but `npm run build:map`
 needs network access.
+
+## Deploying
+
+Pushing to `main` builds and publishes to GitHub Pages via
+`.github/workflows/deploy.yml`. The workflow runs the tests first, so a broken
+build never reaches the live site.
+
+First-time setup on a new repo: **Settings -> Pages -> Source -> "GitHub
+Actions"**. Without that the first deploy fails.
+
+Note that settings and progress live in `localStorage`, which is per-origin, so
+the local copy and the published one keep separate progress.

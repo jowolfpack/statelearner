@@ -1,3 +1,7 @@
 # Normalise every text file to LF in the repository, whatever the checkout OS
 # does locally. Keeps diffs clean when this is shared or built on Linux CI.
 * text=auto eol=lf
+
+# Batch files must keep CRLF or cmd.exe can mis-parse labels.
+*.cmd text eol=crlf
+*.bat text eol=crlf
