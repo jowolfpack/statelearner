@@ -1,0 +1,335 @@
+/*
+ * Palette tokens are defined three times on purpose: bare :root is the light
+ * default, the media query follows the OS for theme "system", and [data-theme]
+ * lets the toggle override the OS in both directions.
+ */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --ink: #16191d;
+  --muted: #646b76;
+  --line: #dfe2e8;
+  --accent: #2f5fd0;
+  --ok: #1a7a4c;
+  --bad: #b3261e;
+  --map-land: #e4e7ec;
+  --map-stroke: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a;
+    --surface: #1d2025;
+    --ink: #eceef1;
+    --muted: #9aa1ac;
+    --line: #2f343b;
+    --accent: #7aa2f7;
+    --ok: #57c48a;
+    --bad: #f2837b;
+    --map-land: #2b3037;
+    --map-stroke: #14161a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --surface: #1d2025;
+  --ink: #eceef1;
+  --muted: #9aa1ac;
+  --line: #2f343b;
+  --accent: #7aa2f7;
+  --ok: #57c48a;
+  --bad: #f2837b;
+  --map-land: #2b3037;
+  --map-stroke: #14161a;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px 16px 48px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.app {
+  max-width: 620px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* -- Header ------------------------------------------------------------ */
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+h1 {
+  margin: 0;
+  flex: 1;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+select,
+input,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 7px;
+  font-size: 0.85rem;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+
+/* -- Map --------------------------------------------------------------- */
+
+.map-slot {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.us-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.us-map-state {
+  fill: var(--map-land);
+  stroke: var(--map-stroke);
+  stroke-width: 0.75;
+  stroke-linejoin: round;
+  transition: fill 160ms ease-out;
+}
+
+.us-map-state.is-active {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.25;
+}
+
+/* -- Group picker ------------------------------------------------------ */
+
+.groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.group {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-weight: 500;
+}
+
+.group:hover {
+  border-color: var(--accent);
+}
+
+.group.is-cleared .group-name::before {
+  content: "\2713\00a0";
+  color: var(--ok);
+}
+
+.group-count {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* -- Cards ------------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.progress {
+  height: 4px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 160ms ease-out;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 24px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.prompt-label {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.prompt {
+  margin: 4px 0 24px;
+  font-size: clamp(1.6rem, 6.5vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.answer {
+  margin: 4px 0 24px;
+  font-size: clamp(1.4rem, 5.5vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--accent);
+}
+
+#answer-form {
+  display: flex;
+  gap: 8px;
+}
+
+#answer {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+#answer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.link {
+  background: none;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+  padding: 10px 0 0;
+  text-decoration: underline;
+}
+
+.feedback {
+  min-height: 1.5rem;
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+}
+
+.feedback.ok {
+  color: var(--ok);
+}
+
+.feedback.bad {
+  color: var(--bad);
+}
+
+#cleared h2 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+
+#cleared p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

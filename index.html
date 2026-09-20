@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StateLearner</title>
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <button type="button" class="back" id="back" hidden>&larr; Groups</button>
+        <h1 id="title">StateLearner</h1>
+        <div class="settings">
+          <label>
+            <span class="sr-only">Mode</span>
+            <select id="direction">
+              <option value="front-to-back">State &rarr; Capital</option>
+              <option value="back-to-front">Capital &rarr; State</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </label>
+          <label>
+            <span class="sr-only">Theme</span>
+            <select id="theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="map-toggle" checked />
+            Map
+          </label>
+        </div>
+      </header>
+
+      <div id="map-slot" class="map-slot"></div>
+
+      <!-- Group picker -->
+      <section id="picker">
+        <ul class="groups" id="group-list"></ul>
+        <button type="button" class="link" id="reset-progress">Reset progress</button>
+      </section>
+
+      <!-- Study pass -->
+      <section class="card" id="study" hidden>
+        <p class="meta"><span id="study-position"></span><span>Study</span></p>
+        <p class="prompt-label" id="study-front-label"></p>
+        <p class="prompt" id="study-front"></p>
+        <p class="prompt-label" id="study-back-label"></p>
+        <p class="answer" id="study-back"></p>
+        <div class="actions">
+          <button type="button" id="study-next">Next</button>
+          <button type="button" class="secondary" id="study-skip">Start drill</button>
+        </div>
+      </section>
+
+      <!-- Drill -->
+      <section class="card" id="drill" hidden>
+        <div class="progress" role="progressbar" aria-label="Progress through this group">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <p class="meta"><span id="drill-position"></span><span id="attempt"></span></p>
+
+        <p class="prompt-label" id="prompt-label"></p>
+        <p class="prompt" id="prompt"></p>
+
+        <form id="answer-form" autocomplete="off">
+          <input
+            id="answer"
+            type="text"
+            autocomplete="off"
+            autocapitalize="words"
+            spellcheck="false"
+            aria-label="Your answer"
+          />
+          <button type="submit" id="submit">Check</button>
+        </form>
+
+        <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+        <button type="button" class="link" id="give-up">I don't know</button>
+      </section>
+
+      <!-- Group cleared -->
+      <section class="card" id="cleared" hidden>
+        <h2>Group cleared</h2>
+        <p id="cleared-detail"></p>
+        <div class="actions">
+          <button type="button" id="next-group">Next group</button>
+          <button type="button" class="secondary" id="back-to-groups">All groups</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
