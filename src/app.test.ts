@@ -527,6 +527,17 @@ describe("decks", () => {
     ]);
   });
 
+  it("puts the map beside the panels, not above them", () => {
+    const workspace = document.querySelector(".workspace");
+    expect(workspace).not.toBeNull();
+    // Siblings under one container is what lets the wide layout make columns.
+    expect(workspace?.querySelector(":scope > #map-slot")).not.toBeNull();
+    expect(workspace?.querySelector(":scope > .panels")).not.toBeNull();
+    for (const id of ["picker", "study", "drill", "cleared"]) {
+      expect(document.querySelector(`.panels > #${id}`), id).not.toBeNull();
+    }
+  });
+
   it("draws the map the deck supplies", () => {
     expect(document.querySelectorAll(".us-map-state")).toHaveLength(50);
     expect(document.querySelector(".us-map")?.getAttribute("aria-label")).toBe(

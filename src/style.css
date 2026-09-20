@@ -52,6 +52,44 @@ body {
   gap: 20px;
 }
 
+.workspace,
+.panels {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+/*
+ * Wide enough for two columns: the map sits on the left and stays put while
+ * the question scrolls beside it. The NYC map is far taller than it is wide,
+ * and stacking meant scrolling between the map and the answer box on every
+ * single card.
+ */
+@media (min-width: 900px) {
+  .app {
+    max-width: 1120px;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1fr);
+    align-items: start;
+  }
+
+  /* With the map switched off there is no left column to keep. */
+  .workspace:has(> .map-slot[hidden]) {
+    grid-template-columns: 1fr;
+  }
+
+  .map-slot {
+    position: sticky;
+    top: 20px;
+  }
+
+  .us-map {
+    max-height: calc(100vh - 120px);
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
