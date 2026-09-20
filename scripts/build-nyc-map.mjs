@@ -4,109 +4,179 @@
  *   npm run build:nyc-map
  *
  * No open dataset has neighborhood boundaries at the granularity Not For
- * Tourists uses -- the city's own polygons merge "Tribeca-Civic Center" and
- * "SoHo-Little Italy-Hudson Square", and OpenStreetMap stores these names as
- * points, not shapes. So the coastlines come from open data, which is fact, and
- * the subdivisions are generated here:
+ * Tourists uses, so this builds them:
  *
- *   1. Take the real landmass (NYC Open Data NTAs, unioned).
- *   2. Drop one seed point per neighborhood at roughly its real centre.
- *   3. Cut the landmass into Voronoi cells around those seeds.
+ *   1. Take the real land silhouette -- NYC Open Data for the boroughs,
+ *      OpenStreetMap (ODbL) for the two New Jersey municipalities.
+ *   2. Rotate into the Manhattan street grid, which runs 27.6 degrees east of
+ *      north. Every cut is then parallel or perpendicular to the avenues, so
+ *      boundaries meet at right angles the way the city does.
+ *   3. Cut each neighborhood out as a rectangle in that frame, trimmed to land.
  *
- * Correcting a boundary means nudging a seed in SEEDS below, not editing path
- * data. Boundaries between neighborhoods are approximations and always will be
- * -- where SoHo ends and Hudson Square begins is not a fact.
+ * Boundaries are declared below as two corners each, given as real street
+ * intersections in [lat, lon]. Moving one is a one-line edit.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { Delaunay } from "d3-delaunay";
 import polygonClipping from "polygon-clipping";
 
 const SOURCE = "https://data.cityofnewyork.us/api/geospatial/9nt8-h7nd?method=export&format=GeoJSON";
 const OUT = new URL("../src/data/nyc-map.ts", import.meta.url);
+const NJ = JSON.parse(readFileSync(new URL("./nj-boundaries.json", import.meta.url), "utf-8"));
+
 const WIDTH = 900;
-const HEIGHT = 1200;
+const HEIGHT = 1300;
 const PRECISION = 1;
 
-/** Longitude degrees are shorter than latitude ones here; equalise before Voronoi. */
-const LON_SCALE = Math.cos((40.75 * Math.PI) / 180);
+/** Measured off Fifth Avenue: the avenues bear 27.64 degrees east of north. */
+const GRID = (27.64 * Math.PI) / 180;
+const COS = Math.cos(GRID);
+const SIN = Math.sin(GRID);
+const M_LON = 111320 * Math.cos((40.75 * Math.PI) / 180);
+const M_LAT = 110574;
 
-/** [id, latitude, longitude, landmass] -- nudge these to move a boundary. */
-const SEEDS = [
-  // Downtown
-  ["financial-district", 40.7075, -74.011, "manhattan"],
-  ["tribeca", 40.7185, -74.008, "manhattan"],
-  ["city-hall-chinatown", 40.7145, -73.9985, "manhattan"],
-  ["lower-east-side", 40.7185, -73.9855, "manhattan"],
-  ["west-village", 40.7345, -74.0045, "manhattan"],
-  ["washington-sq", 40.7275, -73.9975, "manhattan"],
-  ["east-village", 40.7275, -73.9825, "manhattan"],
-  // Midtown
-  ["chelsea", 40.7455, -74.0015, "manhattan"],
-  ["flatiron", 40.7405, -73.99, "manhattan"],
-  ["murray-hill-gramercy", 40.7455, -73.979, "manhattan"],
-  ["hells-kitchen", 40.7625, -73.992, "manhattan"],
-  ["midtown", 40.7555, -73.982, "manhattan"],
-  ["east-midtown", 40.7555, -73.97, "manhattan"],
-  // Uptown
-  ["uws-lower", 40.7775, -73.9815, "manhattan"],
-  ["ues-lower", 40.7695, -73.9625, "manhattan"],
-  ["uws-upper", 40.7935, -73.9705, "manhattan"],
-  ["ues-east-harlem", 40.7855, -73.951, "manhattan"],
-  ["morningside-heights", 40.8085, -73.9625, "manhattan"],
-  ["harlem-lower", 40.8065, -73.9455, "manhattan"],
-  ["el-barrio", 40.7945, -73.937, "manhattan"],
-  // Way Uptown
-  ["manhattanville", 40.8245, -73.9495, "manhattan"],
-  ["harlem-upper", 40.8185, -73.937, "manhattan"],
-  ["washington-heights", 40.8465, -73.9375, "manhattan"],
-  ["fort-george", 40.8605, -73.928, "manhattan"],
-  ["inwood", 40.869, -73.9205, "manhattan"],
-  // Leaving Manhattan
-  ["astoria", 40.7665, -73.923, "outer"],
-  ["long-island-city", 40.7465, -73.947, "outer"],
-  ["greenpoint", 40.7295, -73.951, "outer"],
-  ["williamsburg", 40.7135, -73.957, "outer"],
-  ["brooklyn-heights", 40.696, -73.993, "outer"],
-  ["fort-greene", 40.6905, -73.9735, "outer"],
-  ["bococa", 40.6815, -74.0, "outer"],
-  ["park-slope", 40.6715, -73.978, "outer"],
-  ["hoboken", 40.744, -74.032, "nj"],
-  ["jersey-city", 40.718, -74.045, "nj"],
-];
+/** Into the grid frame: u runs across the avenues, v runs along them. */
+const rot = ([lon, lat]) => {
+  const x = lon * M_LON;
+  const y = lat * M_LAT;
+  return [x * COS - y * SIN, x * SIN + y * COS];
+};
+
+const unrot = ([u, v]) => [(u * COS + v * SIN) / M_LON, (-u * SIN + v * COS) / M_LAT];
+
+/** A grid-aligned quad spanning two corners, each given as [lat, lon]. */
+function block([latA, lonA], [latB, lonB]) {
+  const a = rot([lonA, latA]);
+  const b = rot([lonB, latB]);
+  const u0 = Math.min(a[0], b[0]);
+  const u1 = Math.max(a[0], b[0]);
+  const v0 = Math.min(a[1], b[1]);
+  const v1 = Math.max(a[1], b[1]);
+  // Two corners lying along one grid axis collapse the block to a sliver, which
+  // then silently clips away to nothing. Catch it here instead.
+  if (u1 - u0 < 120 || v1 - v0 < 120) {
+    throw new Error(
+      `Block corners are nearly parallel to the grid: ${Math.round(u1 - u0)}m across ` +
+        `by ${Math.round(v1 - v0)}m along. Pick corners that differ on both axes.`,
+    );
+  }
+  return [
+    [[unrot([u0, v0]), unrot([u1, v0]), unrot([u1, v1]), unrot([u0, v1]), unrot([u0, v0])]],
+  ];
+}
+
+/** An ordinary lat/lon rectangle. The viewport has no reason to follow the grid. */
+function latLonBox([latA, lonA], [latB, lonB]) {
+  const [lat0, lat1] = [Math.min(latA, latB), Math.max(latA, latB)];
+  const [lon0, lon1] = [Math.min(lonA, lonB), Math.max(lonA, lonB)];
+  return [
+    [
+      [
+        [lon0, lat0],
+        [lon1, lat0],
+        [lon1, lat1],
+        [lon0, lat1],
+        [lon0, lat0],
+      ],
+    ],
+  ];
+}
 
 /**
- * The Hudson County waterfront. New Jersey is not in the NYC dataset, so this
- * outline is authored: the eastern edge follows the Hudson shoreline, the rest
- * bounds how far inland the two areas are drawn.
+ * Reference points on real avenues and cross-streets. Because the cuts run in
+ * the grid frame, every point on one avenue shares a `u`, and every point on
+ * one cross-street shares a `v` -- so one point names the whole line.
  */
-const NJ_LAND = [
-  [
-    [
-      [-74.0265, 40.7555],
-      [-74.0175, 40.7505],
-      [-74.0125, 40.7295],
-      [-74.0195, 40.7115],
-      [-74.0345, 40.6955],
-      [-74.0665, 40.6925],
-      [-74.0845, 40.7225],
-      [-74.0735, 40.7545],
-      [-74.0265, 40.7555],
-    ],
-  ],
+const AVENUE_POINTS = {
+  eighth: [40.7573, -73.9897],
+  seventh: [40.756, -73.9871],
+  sixth: [40.7546, -73.9847],
+  fifth: [40.7532, -73.9822],
+  park: [40.7519, -73.9772],
+  third: [40.7505, -73.9722],
+};
+
+const STREET_POINTS = {
+  chambers: [40.7148, -74.0075],
+  houston: [40.7255, -73.9955],
+  fourteenth: [40.7367, -73.9925],
+  thirtyFourth: [40.7484, -73.9857],
+  fiftyNinth: [40.7644, -73.9737],
+  eightySixth: [40.7794, -73.9594],
+  oneTenth: [40.796, -73.949],
+  oneTwentyFifth: [40.8045, -73.9422],
+  oneFortyFifth: [40.8202, -73.9365],
+  oneEightyFirst: [40.85, -73.9345],
+  dyckman: [40.8645, -73.927],
+};
+
+const U = Object.fromEntries(
+  Object.entries(AVENUE_POINTS).map(([k, [lat, lon]]) => [k, rot([lon, lat])[0]]),
+);
+const V = Object.fromEntries(
+  Object.entries(STREET_POINTS).map(([k, [lat, lon]]) => [k, rot([lon, lat])[1]]),
+);
+// Blocks that run to the water are given edges well past it; land does the rest.
+U.farWest = Math.min(...Object.values(U)) - 6000;
+U.farEast = Math.max(...Object.values(U)) + 6000;
+V.southEnd = Math.min(...Object.values(V)) - 6000;
+V.northEnd = Math.max(...Object.values(V)) + 6000;
+
+/** A block bounded by two cross-streets and two avenues. */
+function gridBlock(south, north, west, east) {
+  const [u0, u1] = [U[west], U[east]];
+  const [v0, v1] = [V[south], V[north]];
+  if (u0 === undefined || u1 === undefined || v0 === undefined || v1 === undefined) {
+    throw new Error(`Unknown grid line in ${south}/${north}/${west}/${east}`);
+  }
+  return [
+    [[unrot([u0, v0]), unrot([u1, v0]), unrot([u1, v1]), unrot([u0, v1]), unrot([u0, v0])]],
+  ];
+}
+
+/** Manhattan, as the book's rows: [id, south street, north street, west ave, east ave]. */
+const MANHATTAN = [
+  ["financial-district", "southEnd", "chambers", "farWest", "farEast"],
+  ["tribeca", "chambers", "houston", "farWest", "sixth"],
+  ["city-hall-chinatown", "chambers", "houston", "sixth", "third"],
+  ["lower-east-side", "chambers", "houston", "third", "farEast"],
+  ["west-village", "houston", "fourteenth", "farWest", "sixth"],
+  ["washington-sq", "houston", "fourteenth", "sixth", "third"],
+  ["east-village", "houston", "fourteenth", "third", "farEast"],
+  ["chelsea", "fourteenth", "thirtyFourth", "farWest", "sixth"],
+  ["flatiron", "fourteenth", "thirtyFourth", "sixth", "park"],
+  ["murray-hill-gramercy", "fourteenth", "thirtyFourth", "park", "farEast"],
+  ["hells-kitchen", "thirtyFourth", "fiftyNinth", "farWest", "eighth"],
+  ["midtown", "thirtyFourth", "fiftyNinth", "eighth", "park"],
+  ["east-midtown", "thirtyFourth", "fiftyNinth", "park", "farEast"],
+  // Central Park fills eighth..fifth between 59th and 110th, and is cut out below.
+  ["uws-lower", "fiftyNinth", "eightySixth", "farWest", "eighth"],
+  ["ues-lower", "fiftyNinth", "eightySixth", "fifth", "farEast"],
+  ["uws-upper", "eightySixth", "oneTenth", "farWest", "eighth"],
+  ["ues-east-harlem", "eightySixth", "oneTenth", "fifth", "farEast"],
+  ["morningside-heights", "oneTenth", "oneTwentyFifth", "farWest", "eighth"],
+  ["harlem-lower", "oneTenth", "oneTwentyFifth", "eighth", "third"],
+  ["el-barrio", "oneTenth", "oneTwentyFifth", "third", "farEast"],
+  ["manhattanville", "oneTwentyFifth", "oneFortyFifth", "farWest", "eighth"],
+  ["harlem-upper", "oneTwentyFifth", "oneFortyFifth", "eighth", "farEast"],
+  ["washington-heights", "oneFortyFifth", "oneEightyFirst", "farWest", "farEast"],
+  ["fort-george", "oneEightyFirst", "dyckman", "farWest", "farEast"],
+  ["inwood", "dyckman", "northEnd", "farWest", "farEast"],
 ];
 
-/** How far from Manhattan the outer-borough areas are drawn. */
-const OUTER_BOUNDS = [
-  [
-    [
-      [-74.035, 40.655],
-      [-73.895, 40.655],
-      [-73.895, 40.795],
-      [-74.035, 40.795],
-      [-74.035, 40.655],
-    ],
-  ],
+/** Across the rivers, where the Manhattan grid does not apply: corner pairs. */
+const OUTER = [
+  ["astoria", [40.755, -73.945], [40.79, -73.895]],
+  ["long-island-city", [40.735, -73.965], [40.762, -73.925]],
+  ["greenpoint", [40.719, -73.965], [40.74, -73.93]],
+  ["williamsburg", [40.699, -73.975], [40.722, -73.93]],
+  ["brooklyn-heights", [40.688, -74.015], [40.706, -73.985]],
+  ["fort-greene", [40.68, -73.985], [40.7, -73.96]],
+  ["bococa", [40.665, -74.03], [40.688, -73.988]],
+  ["park-slope", [40.655, -73.988], [40.682, -73.96]],
 ];
+
+/** Everything drawn, so far Brooklyn and Queens stay off the map. */
+const VIEWPORT = latLonBox([40.648, -74.072], [40.895, -73.892]);
 
 function toMultiPolygon(geometry) {
   if (geometry.type === "Polygon") return [geometry.coordinates];
@@ -114,37 +184,10 @@ function toMultiPolygon(geometry) {
   throw new Error(`Unexpected geometry ${geometry.type}`);
 }
 
-function ringArea(ring) {
-  let sum = 0;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    sum += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1]);
-  }
-  return Math.abs(sum / 2);
-}
-
-/** The single biggest polygon, used to drop Marble Hill and the small islands. */
-function largestPolygon(multi) {
-  let best = null;
-  let bestArea = -1;
-  for (const polygon of multi) {
-    const area = ringArea(polygon[0]);
-    if (area > bestArea) {
-      bestArea = area;
-      best = polygon;
-    }
-  }
-  return [best];
-}
-
 /** Rounding damps the floating-point noise that upsets the sweep-line clipper. */
 function clean(multi) {
   const r = (v) => Math.round(v * 1e6) / 1e6;
   return multi.map((poly) => poly.map((ring) => ring.map(([x, y]) => [r(x), r(y)])));
-}
-
-function unionOf(features) {
-  const parts = features.flatMap((f) => clean(toMultiPolygon(f.geometry)));
-  return parts.length === 0 ? [] : polygonClipping.union(parts[0], ...parts.slice(1));
 }
 
 function bboxOf(multi) {
@@ -160,11 +203,10 @@ function bboxOf(multi) {
 const overlaps = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
 
 /**
- * Unioning every Brooklyn and Queens polygon at once overwhelms the clipper.
- * Trimming each piece to the area of interest first keeps the inputs small and
- * drops far-east Queens entirely.
+ * Trimming each piece to the viewport before unioning keeps the inputs small;
+ * unioning every Brooklyn and Queens polygon at once overwhelms the clipper.
  */
-function unionNear(features, bounds) {
+function unionWithin(features, bounds) {
   const box = bboxOf(bounds);
   const pieces = [];
   for (const feature of features) {
@@ -173,75 +215,66 @@ function unionNear(features, bounds) {
     const trimmed = polygonClipping.intersection(multi, bounds);
     if (trimmed.length > 0) pieces.push(trimmed);
   }
-  return pieces.length === 0 ? [] : polygonClipping.union(pieces[0], ...pieces.slice(1));
+  if (pieces.length === 0) return [];
+  return polygonClipping.union(pieces[0], ...pieces.slice(1));
 }
 
 const response = await fetch(SOURCE);
 if (!response.ok) throw new Error(`${SOURCE} -> HTTP ${response.status}`);
 const nta = await response.json();
-const inBorough = (name) => nta.features.filter((f) => f.properties.boroname === name);
 
-const manhattanLand = largestPolygon(unionOf(inBorough("Manhattan")));
-const outerLand = unionNear([...inBorough("Brooklyn"), ...inBorough("Queens")], OUTER_BOUNDS);
-const LANDMASSES = { manhattan: manhattanLand, outer: outerLand, nj: NJ_LAND };
-
-const centralPark = unionOf(
-  nta.features.filter((f) => f.properties.ntaname === "Central Park"),
+const nycLand = unionWithin(nta.features, VIEWPORT);
+const njPieces = ["hoboken", "jersey-city"].map((id) =>
+  polygonClipping.intersection(clean(NJ.polygons[id]), VIEWPORT),
 );
-if (centralPark.length === 0) throw new Error("Central Park not found in the source");
+const silhouette = polygonClipping.union(nycLand, ...njPieces);
 
-/** Cuts one landmass into a cell per seed, then trims each cell to the land. */
-function subdivide(landId) {
-  const land = LANDMASSES[landId];
-  const seeds = SEEDS.filter(([, , , mass]) => mass === landId);
+const park = polygonClipping.intersection(
+  clean(
+    nta.features
+      .filter((f) => f.properties.ntaname === "Central Park")
+      .flatMap((f) => toMultiPolygon(f.geometry)),
+  ),
+  VIEWPORT,
+);
+if (park.length === 0) throw new Error("Central Park not found in the source");
 
-  const points = seeds.map(([, lat, lon]) => [lon * LON_SCALE, lat]);
-  const xs = land.flat(2).map(([lon]) => lon * LON_SCALE);
-  const ys = land.flat(2).map(([, lat]) => lat);
-  const pad = 0.05;
-  const bounds = [
-    Math.min(...xs) - pad,
-    Math.min(...ys) - pad,
-    Math.max(...xs) + pad,
-    Math.max(...ys) + pad,
-  ];
-
-  const voronoi = Delaunay.from(points).voronoi(bounds);
-  const out = [];
-  for (const [index, [id]] of seeds.entries()) {
-    const cell = voronoi.cellPolygon(index);
-    if (cell === null) throw new Error(`No Voronoi cell for ${id}`);
-    const unscaled = [[cell.map(([x, y]) => [x / LON_SCALE, y])]];
-    const piece = polygonClipping.intersection(land, unscaled);
-    if (piece.length === 0) throw new Error(`${id} does not touch its landmass`);
-    out.push([id, piece]);
-  }
-  return out;
+const regions = [];
+const shapes = [
+  ...MANHATTAN.map(([id, s2, n, w, e]) => [id, gridBlock(s2, n, w, e)]),
+  ...OUTER.map(([id, a, b]) => [id, block(a, b)]),
+];
+for (const [id, shape] of shapes) {
+  // Cut the block out of real land, then take the park back out, so Central
+  // Park reads as a hole in the grid rather than being paved over.
+  const onLand = polygonClipping.intersection(nycLand, shape);
+  const piece = polygonClipping.difference(onLand, park);
+  if (piece.length === 0) throw new Error(`${id} does not land on any land`);
+  regions.push([id, piece]);
 }
 
-const regions = [
-  ...subdivide("manhattan"),
-  ...subdivide("outer"),
-  ...subdivide("nj"),
-];
+// The two New Jersey areas are whole municipalities, so they need no cutting.
+for (const [index, id] of ["hoboken", "jersey-city"].entries()) {
+  const piece = njPieces[index];
+  if (piece.length === 0) throw new Error(`${id} fell outside the viewport`);
+  regions.push([id, piece]);
+}
 
 // Project planar-Mercator by hand. d3-geo treats polygons as spherical, where a
 // ring wound the wrong way means "the whole globe except this", and every path
-// ends up covering the canvas. At city scale none of that machinery earns its
-// keep, and doing the arithmetic here removes the failure mode entirely.
+// ends up covering the canvas.
 const R = 6378137;
 const project = ([lon, lat]) => [
   (lon * Math.PI * R) / 180,
   R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)),
 ];
+const projectAll = (multi) => multi.map((poly) => poly.map((ring) => ring.map(project)));
 
-const projected = regions.map(([id, geom]) => [
-  id,
-  geom.map((poly) => poly.map((ring) => ring.map(project))),
-]);
-const parkProjected = centralPark.map((poly) => poly.map((ring) => ring.map(project)));
+const projected = regions.map(([id, geom]) => [id, projectAll(geom)]);
+const silhouetteXY = projectAll(silhouette);
+const parkXY = projectAll(park);
 
-const every = [...projected.flatMap(([, g]) => g), ...parkProjected].flat(2);
+const every = [...projected.flatMap(([, g]) => g), ...silhouetteXY].flat(2);
 const minX = Math.min(...every.map(([x]) => x));
 const maxX = Math.max(...every.map(([x]) => x));
 const minY = Math.min(...every.map(([, y]) => y));
@@ -276,7 +309,6 @@ const paths = projected.map(([id, geom]) => {
   if (d === "") throw new Error(`${id} produced an empty path`);
   return [id, d];
 });
-const parkPath = draw(parkProjected);
 
 const PAD = 6;
 const viewBox = [
@@ -289,9 +321,9 @@ const viewBox = [
 writeFileSync(
   OUT,
   `// Generated by scripts/build-nyc-map.mjs -- do not edit by hand.
-// Coastlines from NYC Open Data (${SOURCE.split("?")[0]}); New Jersey's outline
-// and every neighborhood boundary are generated from the seed points in that
-// script. Move a seed to move a boundary.
+// Land from NYC Open Data and, for New Jersey, OpenStreetMap (ODbL).
+// Neighborhood boundaries are rectangles in the Manhattan street grid, declared
+// as corner intersections in that script. Move a corner to move a boundary.
 
 export const NYC_MAP_VIEWBOX = "${viewBox}";
 
@@ -302,7 +334,8 @@ ${paths.map(([id, d]) => `  ${JSON.stringify(id)}: ${JSON.stringify(d)},`).join(
 
 /** Drawn for orientation, never asked about. */
 export const NYC_LANDMARKS: Record<string, string> = {
-  "central-park": ${JSON.stringify(parkPath)},
+  land: ${JSON.stringify(draw(silhouetteXY))},
+  "central-park": ${JSON.stringify(draw(parkXY))},
 };
 `,
   "utf-8",

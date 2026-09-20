@@ -138,9 +138,19 @@ select {
 }
 
 .us-map-landmark {
-  fill: var(--ok);
-  opacity: 0.22;
   pointer-events: none;
+}
+
+/* The land nobody is asked about: context, not an answer. */
+.landmark-land {
+  fill: var(--line);
+  stroke: var(--map-stroke);
+  stroke-width: 0.6;
+}
+
+.landmark-central-park {
+  fill: var(--ok);
+  opacity: 0.4;
 }
 
 .us-map.is-selectable .us-map-state {

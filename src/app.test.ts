@@ -570,7 +570,10 @@ describe("the NYC deck", () => {
       "Map of New York City neighborhoods",
     );
     expect(document.querySelectorAll(".us-map-state")).toHaveLength(35);
-    expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(1);
+    // The land silhouette for context, and Central Park as a hole in the grid.
+    expect(document.querySelector(".landmark-land")).not.toBeNull();
+    expect(document.querySelector(".landmark-central-park")).not.toBeNull();
+    expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(2);
   });
 
   it("names its modes after neighborhood and location", () => {

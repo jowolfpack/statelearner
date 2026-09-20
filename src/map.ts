@@ -22,10 +22,10 @@ export class RegionMap {
     svg.setAttribute("aria-label", source.label);
 
     // Landmarks sit underneath: drawn for orientation, never asked about.
-    for (const d of Object.values(source.landmarks ?? {})) {
+    for (const [id, d] of Object.entries(source.landmarks ?? {})) {
       const path = document.createElementNS(SVG_NS, "path");
       path.setAttribute("d", d);
-      path.setAttribute("class", "us-map-landmark");
+      path.setAttribute("class", `us-map-landmark landmark-${id}`);
       svg.append(path);
     }
 
