@@ -32,7 +32,7 @@
             <input type="checkbox" id="sound-toggle" />
             Sound
           </label>
-          <label class="toggle">
+          <label class="toggle" id="map-toggle-label">
             <input type="checkbox" id="map-toggle" checked />
             Map
           </label>
@@ -81,6 +81,7 @@
           />
           <button type="submit" id="submit">Check</button>
         </form>
+        <p class="click-hint" id="click-hint" hidden>Click it on the map.</p>
 
         <p class="feedback spoken" id="feedback" role="status" aria-live="polite"></p>
         <button type="button" class="link" id="give-up">I don't know</button>

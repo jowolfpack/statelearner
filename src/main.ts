@@ -29,6 +29,8 @@ const ui = {
   direction: el<HTMLSelectElement>("direction"),
   theme: el<HTMLSelectElement>("theme"),
   mapToggle: el<HTMLInputElement>("map-toggle"),
+  mapToggleLabel: el("map-toggle-label"),
+  clickHint: el("click-hint"),
   soundToggle: el<HTMLInputElement>("sound-toggle"),
   soundToggleLabel: el("sound-toggle-label"),
   mapSlot: el("map-slot"),
@@ -214,9 +216,12 @@ function renderStudy(active: GroupSession): void {
   ui.studyFrontLabel.textContent = deck.frontLabel;
   ui.studyFront.textContent = card.front;
   ui.studyBackLabel.textContent = deck.backLabel;
+  const backIsMap = deck.backKind === "map";
+  ui.studyBackLabel.hidden = backIsMap;
+  ui.studyBackRow.hidden = backIsMap;
   ui.studyBack.textContent = card.back;
   mountSpeaker(ui.studyFrontRow, card.frontSpoken ?? card.front, card.front);
-  mountSpeaker(ui.studyBackRow, card.backSpoken ?? card.back, card.back);
+  mountSpeaker(ui.studyBackRow, backIsMap ? null : (card.backSpoken ?? card.back), card.back);
   ui.studyNext.textContent = last ? "Start drill" : "Next";
   ui.studySkip.hidden = last;
 }
@@ -229,8 +234,17 @@ function renderDrill(active: GroupSession): void {
   ui.progressBar.style.width = `${(active.drillPosition / active.size) * 100}%`;
   ui.drillPosition.textContent = `${active.drillPosition + 1} of ${active.size}`;
   ui.attempt.textContent = active.attempt === 1 ? "" : `Attempt ${active.attempt}`;
+  const askedOnMap = question.promptKind === "map";
+  const answeredOnMap = question.answerKind === "map";
+
   ui.promptLabel.textContent = question.promptLabel;
-  ui.prompt.textContent = question.prompt;
+  // A map prompt is the highlight itself; printing the name would answer it.
+  ui.prompt.textContent = askedOnMap ? "Which one is highlighted?" : question.prompt;
+  ui.promptRow.classList.toggle("is-question", askedOnMap);
+
+  ui.answer.hidden = answeredOnMap;
+  ui.submit.hidden = answeredOnMap && result === null;
+  ui.clickHint.hidden = !(answeredOnMap && result === null);
 
   // Once graded, the same form advances instead of grading again.
   ui.answer.readOnly = result !== null;
@@ -251,9 +265,9 @@ function renderDrill(active: GroupSession): void {
     ui.feedback.className = "feedback spoken bad";
   }
 
-  // The prompt is on screen, so it is always safe to offer; the answer only
-  // once it has been revealed.
-  mountSpeaker(ui.promptRow, question.promptSpoken, question.prompt);
+  // The prompt is on screen, so it is always safe to offer -- unless the prompt
+  // is a map highlight, where speaking the name would say the answer aloud.
+  mountSpeaker(ui.promptRow, askedOnMap ? null : question.promptSpoken, question.prompt);
   mountSpeaker(ui.feedback, result === null ? null : question.answerSpoken, question.answer);
 
   ui.answer.focus();
@@ -282,8 +296,8 @@ function renderCleared(active: GroupSession): void {
 }
 
 /**
- * The map must not give the answer away: when the state is what you are being
- * asked for, it stays unmarked until the question has been graded.
+ * The map must not give the answer away: whatever is being asked for stays
+ * unmarked until the question has been graded.
  */
 function highlightedCardId(): string | null {
   if (session === null) return null;
@@ -291,19 +305,48 @@ function highlightedCardId(): string | null {
 
   const question = session.question;
   if (question === null) return null;
+  const graded = session.lastResult !== null;
 
-  const stateIsThePrompt = question.promptLabel === deck.frontLabel;
-  return stateIsThePrompt || session.lastResult !== null ? question.cardId : null;
+  // The highlight IS the question; showing it gives nothing away.
+  if (question.promptKind === "map") return question.cardId;
+  // The click is the answer, so marking it early would answer it for you.
+  if (question.answerKind === "map") return graded ? question.cardId : null;
+
+  const promptIsMappable = question.promptLabel === deck.frontLabel;
+  return promptIsMappable || graded ? question.cardId : null;
+}
+
+/** True when this deck's questions need the map on screen to be answerable. */
+function mapIsRequired(): boolean {
+  return deck.backKind === "map";
 }
 
 function renderMap(): void {
   if (map === null) {
     ui.mapSlot.hidden = true;
+    ui.mapToggleLabel.hidden = true;
     return;
   }
-  const enabled = settings.mapEnabled();
+  // Hiding the map would make a map question unanswerable, so the toggle only
+  // applies to decks where the map is decoration.
+  const required = mapIsRequired();
+  ui.mapToggleLabel.hidden = required;
+  const enabled = required || settings.mapEnabled();
   ui.mapSlot.hidden = !enabled;
   map.highlight(enabled ? highlightedCardId() : null);
+
+  const question = session?.phase === "drill" ? session.question : null;
+  const awaitingClick =
+    question !== null && question.answerKind === "map" && session?.lastResult === null;
+  map.setSelectable(awaitingClick, answerByClick);
+}
+
+function answerByClick(cardId: string): void {
+  if (session === null || session.lastResult !== null) return;
+  const question = session.question;
+  session.submit(cardId);
+  if (question !== null && session.lastResult !== null) announce(question.answerSpoken);
+  render();
 }
 
 // -- Flow ----------------------------------------------------------------

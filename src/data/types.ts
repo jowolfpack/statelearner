@@ -20,12 +20,16 @@ export interface Group {
   cardIds: string[];
 }
 
+export type SideKind = "text" | "map";
+
 /** Geometry for decks whose cards live on a map, keyed by card id. */
 export interface DeckMap {
   viewBox: string;
   paths: Record<string, string>;
   /** For the rendered SVG's accessible name, e.g. "Map of the United States". */
   label: string;
+  /** Drawn for orientation but never asked about, e.g. Central Park. */
+  landmarks?: Record<string, string>;
 }
 
 /**
@@ -48,6 +52,12 @@ export interface Deck {
   regions?: Group[];
   /** Supplied by decks that show their cards on a map. */
   map?: DeckMap;
+  /**
+   * What the back of a card is. "map" means the card's place on the map rather
+   * than a second written side: it is shown by highlighting and answered by
+   * clicking. Defaults to "text".
+   */
+  backKind?: SideKind;
 }
 
 export function cardsOf(deck: Deck, group: Group): Card[] {

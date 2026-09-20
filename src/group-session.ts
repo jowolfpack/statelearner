@@ -110,10 +110,12 @@ export class GroupSession {
   submit(input: string): DrillResult | null {
     const question = this.question;
     if (question === null || this.result !== null) return this.result;
-    this.result = {
-      correct: matchesAnswer(input, question.accepted),
-      answer: question.answer,
-    };
+    // A map answer arrives as the clicked region id, not as typed text.
+    const correct =
+      question.answerKind === "map"
+        ? input === question.cardId
+        : matchesAnswer(input, question.accepted);
+    this.result = { correct, answer: question.answer };
     return this.result;
   }
 

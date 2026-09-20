@@ -137,6 +137,32 @@ select {
   transition: fill 160ms ease-out;
 }
 
+.us-map-landmark {
+  fill: var(--ok);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.us-map.is-selectable .us-map-state {
+  cursor: pointer;
+}
+
+.us-map.is-selectable .us-map-state:hover {
+  fill: var(--muted);
+}
+
+.click-hint {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.prompt-row.is-question .prompt,
+.is-question .prompt {
+  color: var(--muted);
+  font-size: clamp(1.1rem, 4vw, 1.4rem);
+}
+
 .us-map-state.is-active {
   fill: var(--accent);
   stroke: var(--surface);

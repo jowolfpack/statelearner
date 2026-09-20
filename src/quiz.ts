@@ -1,4 +1,4 @@
-import type { Card, Deck } from "./data/types";
+import type { Card, Deck, SideKind } from "./data/types";
 
 /** Which side of the card is shown; `mixed` picks per card. */
 export type Direction = "front-to-back" | "back-to-front" | "mixed";
@@ -15,6 +15,9 @@ export interface Question {
   /** What to hand the speech engine; the written form unless overridden. */
   promptSpoken: string;
   answerSpoken: string;
+  /** A "map" side is shown by highlighting, and answered by clicking. */
+  promptKind: SideKind;
+  answerKind: SideKind;
 }
 
 function askBack(deck: Deck, card: Card): Question {
@@ -27,6 +30,8 @@ function askBack(deck: Deck, card: Card): Question {
     accepted: [card.back, ...(card.backAliases ?? [])],
     promptSpoken: card.frontSpoken ?? card.front,
     answerSpoken: card.backSpoken ?? card.back,
+    promptKind: "text",
+    answerKind: deck.backKind ?? "text",
   };
 }
 
@@ -40,6 +45,8 @@ function askFront(deck: Deck, card: Card): Question {
     accepted: [card.front, ...(card.frontAliases ?? [])],
     promptSpoken: card.backSpoken ?? card.back,
     answerSpoken: card.frontSpoken ?? card.front,
+    promptKind: deck.backKind ?? "text",
+    answerKind: "text",
   };
 }
 

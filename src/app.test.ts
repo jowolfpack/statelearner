@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usStatesDeck } from "./data/us-states";
+import { nycDeck } from "./data/nyc";
 
 // Not import.meta.url: under the jsdom environment that is an http URL.
 const html = readFileSync(resolve(process.cwd(), "index.html"), "utf-8");
@@ -518,10 +519,11 @@ describe("decks", () => {
     ]);
   });
 
-  it("hides the deck chooser while there is only one deck", () => {
-    expect(byId("deck-label").hidden).toBe(true);
+  it("offers a chooser now that there is more than one deck", () => {
+    expect(byId("deck-label").hidden).toBe(false);
     expect([...byId<HTMLSelectElement>("deck").options].map((o) => o.value)).toEqual([
       "us-states",
+      "nyc",
     ]);
   });
 
@@ -537,5 +539,102 @@ describe("decks", () => {
     clearGroup();
     expect(localStorage.getItem("statelearner:cleared:us-states")).toContain("new-england");
     expect(localStorage.getItem("statelearner:cleared")).toBeNull();
+  });
+});
+
+describe("the NYC deck", () => {
+  function chooseNyc(): void {
+    const select = byId<HTMLSelectElement>("deck");
+    select.value = "nyc";
+    select.dispatchEvent(new Event("change"));
+  }
+
+  function setDirection(value: string): void {
+    const select = byId<HTMLSelectElement>("direction");
+    select.value = value;
+    select.dispatchEvent(new Event("change"));
+  }
+
+  function openFirstSection(): void {
+    document
+      .querySelector<HTMLButtonElement>(".group-row:not(.is-everything):not(.is-region) .group")
+      ?.click();
+  }
+
+  beforeEach(() => {
+    chooseNyc();
+  });
+
+  it("swaps in its own map and sections", () => {
+    expect(document.querySelector(".us-map")?.getAttribute("aria-label")).toBe(
+      "Map of New York City neighborhoods",
+    );
+    expect(document.querySelectorAll(".us-map-state")).toHaveLength(35);
+    expect(document.querySelectorAll(".us-map-landmark")).toHaveLength(1);
+  });
+
+  it("names its modes after neighborhood and location", () => {
+    expect([...byId<HTMLSelectElement>("direction").options].map((o) => o.textContent)).toEqual([
+      "Neighborhood → Location",
+      "Location → Neighborhood",
+      "Mixed",
+    ]);
+  });
+
+  it("keeps the map on screen, with no toggle to hide it", () => {
+    expect(byId("map-toggle-label").hidden).toBe(true);
+    const toggle = byId<HTMLInputElement>("map-toggle");
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+    expect(byId("map-slot").hidden).toBe(false);
+  });
+
+  it("asks by highlighting, without naming the answer", () => {
+    setDirection("back-to-front");
+    openFirstSection();
+    expect(byId("prompt").textContent).toBe("Which one is highlighted?");
+    expect(document.querySelector(".us-map-state.is-active")).not.toBeNull();
+    // Nothing on screen may say the name before it is answered.
+    expect(document.querySelector("#prompt-row .speak")).toBeNull();
+  });
+
+  it("is answered by clicking the right region", () => {
+    setDirection("front-to-back");
+    openFirstSection();
+    const name = byId("prompt").textContent ?? "";
+    const card = nycDeck.cards.find((c) => c.front === name);
+    expect(card).toBeDefined();
+
+    expect(byId("click-hint").hidden).toBe(false);
+    expect(byId<HTMLInputElement>("answer").hidden).toBe(true);
+    // Not marked until answered, or the click would be free.
+    expect(document.querySelector(".us-map-state.is-active")).toBeNull();
+
+    document.querySelectorAll<SVGPathElement>(".us-map-state")[
+      Object.keys(nycDeck.map?.paths ?? {}).indexOf(card?.id ?? "")
+    ]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(byId("feedback").className).toContain("ok");
+  });
+
+  it("restarts the section when the wrong region is clicked", () => {
+    setDirection("front-to-back");
+    openFirstSection();
+    const name = byId("prompt").textContent ?? "";
+    const wrong = nycDeck.cards.find((c) => c.front !== name);
+
+    document.querySelectorAll<SVGPathElement>(".us-map-state")[
+      Object.keys(nycDeck.map?.paths ?? {}).indexOf(wrong?.id ?? "")
+    ]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(byId("feedback").className).toContain("bad");
+    advance();
+    expect(byId("attempt").textContent).toBe("Attempt 2");
+  });
+
+  it("keeps its progress separate from the states deck", () => {
+    setDirection("back-to-front");
+    openFirstSection();
+    expect(localStorage.getItem("statelearner:cleared:us-states")).toBeNull();
   });
 });
