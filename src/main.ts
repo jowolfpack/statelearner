@@ -117,8 +117,8 @@ function renderPicker(): void {
   const everything = groupRow(everyState, cleared);
   everything.classList.add("is-everything");
   ui.groupList.replaceChildren(
-    ...deck.groups.map((group) => groupRow(group, cleared)),
     everything,
+    ...deck.groups.map((group) => groupRow(group, cleared)),
   );
 }
 

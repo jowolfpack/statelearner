@@ -29,7 +29,7 @@ and puts you back at the start of the group, reshuffled.
 For a group you have not seen before, the **Study** button next to it walks you
 through every state with its capital shown first, then drops you into the drill.
 
-Below the nine divisions sits **All 50 States**, the same drill over the whole
+At the top of the list sits **All 50 States**, the same drill over the whole
 country. The restart rule is unchanged there, so a single slip at state 49 puts
 you back at state 1 — it is a test of the lot, not a gentler mode.
 

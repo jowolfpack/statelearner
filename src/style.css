@@ -200,11 +200,11 @@ select {
   color: var(--ok);
 }
 
-/* The whole-deck run sits apart from the nine divisions. */
+/* The whole-deck run leads the list, set apart from the nine divisions. */
 .group-row.is-everything {
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  margin-bottom: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .group-study {

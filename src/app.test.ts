@@ -69,14 +69,17 @@ function clearGroup(limit = 120): void {
   if (!visible("cleared")) throw new Error("group never cleared");
 }
 
-/** Opens the first group. Groups now start in the drill. */
+/** The first of the nine divisions -- not the all-states row, which leads the list. */
+const FIRST_DIVISION = ".group-row:not(.is-everything)";
+
+/** Opens the first division. Groups now start in the drill. */
 function openFirstGroupAndDrill(): void {
-  document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
+  document.querySelector<HTMLButtonElement>(`${FIRST_DIVISION} .group`)?.click();
 }
 
-/** Opens the first group via its opt-in Study button. */
+/** Opens the first division via its opt-in Study button. */
 function openFirstGroupForStudy(): void {
-  document.querySelectorAll<HTMLButtonElement>(".group-study")[0]?.click();
+  document.querySelector<HTMLButtonElement>(`${FIRST_DIVISION} .group-study`)?.click();
 }
 
 beforeEach(async () => {
@@ -98,7 +101,7 @@ describe("boot", () => {
 
 describe("study pass", () => {
   it("is not the default -- picking a group drills straight away", () => {
-    document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
+    openFirstGroupAndDrill();
     expect(visible("drill")).toBe(true);
     expect(visible("study")).toBe(false);
     expect(byId("prompt").textContent).toBeTruthy();
@@ -119,6 +122,7 @@ describe("study pass", () => {
 
   it("walks every card, then starts the drill", () => {
     openFirstGroupForStudy();
+    expect(byId("title").textContent).toBe("New England");
     for (let i = 0; i < 6; i++) byId<HTMLButtonElement>("study-next").click();
     expect(visible("drill")).toBe(true);
     expect(visible("study")).toBe(false);
@@ -208,6 +212,12 @@ describe("all 50 states", () => {
   function openEverything(): void {
     document.querySelector<HTMLButtonElement>(".group-row.is-everything .group")?.click();
   }
+
+  it("leads the list, above the nine divisions", () => {
+    const rows = [...document.querySelectorAll(".group-row")];
+    expect(rows[0]?.classList.contains("is-everything")).toBe(true);
+    expect(rows).toHaveLength(10);
+  });
 
   it("is offered as its own run covering every state", () => {
     const row = document.querySelector(".group-row.is-everything");
