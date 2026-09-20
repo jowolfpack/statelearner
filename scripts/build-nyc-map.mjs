@@ -23,6 +23,7 @@ const SOURCE = "https://data.cityofnewyork.us/api/geospatial/9nt8-h7nd?method=ex
 const OUT = new URL("../src/data/nyc-map.ts", import.meta.url);
 const NJ = JSON.parse(readFileSync(new URL("./nj-boundaries.json", import.meta.url), "utf-8"));
 const WARDS = JSON.parse(readFileSync(new URL("./jc-wards.json", import.meta.url), "utf-8"));
+const WATER = JSON.parse(readFileSync(new URL("./nj-water.json", import.meta.url), "utf-8"));
 
 const WIDTH = 900;
 const HEIGHT = 1300;
@@ -244,56 +245,38 @@ const OUTER_PARTS = [
 ];
 
 /**
- * The New Jersey waterfront, south to north. Municipal boundaries there run out
- * into the Hudson to the state line, which is how Jersey City swallowed Ellis
- * and Liberty Islands and painted over Hoboken's waterfront. NYC Open Data
- * stops at the state border, so this shoreline is authored; everything inland
- * of it is the real municipal boundary.
+ * New Jersey's land, cut at the real waterline. NYC Open Data stops at the
+ * state border, so the shoreline here used to be drawn by hand; instead this
+ * takes a rectangle over the Jersey side and subtracts the Census Bureau's
+ * hydrography -- the Hudson, Upper New York Bay, Newark Bay, the Hackensack --
+ * which is the same kind of source the New York coastline comes from.
  */
-const NJ_SHORELINE = [
-  // Both ends run past the viewport on purpose: the polygon closes with a
-  // straight line back to its far corner, and if that line falls inside the
-  // frame it slices land off into water along the top and bottom edges.
-  [-74.083, 40.638],
-  [-74.075, 40.66],
-  [-74.068, 40.672],
-  [-74.062, 40.685],
-  [-74.056, 40.695],
-  [-74.052, 40.702],
-  [-74.0465, 40.706],
-  [-74.043, 40.7105],
-  [-74.039, 40.7135],
-  [-74.0335, 40.7165],
-  [-74.03, 40.722],
-  [-74.027, 40.73],
-  [-74.0255, 40.736],
-  [-74.024, 40.745],
-  [-74.0235, 40.752],
-  // North of here the line is set from Manhattan's own west edge, measured off
-  // the borough polygons, less the river's width -- which narrows from about
-  // 2km at Weehawken to 1.3km at the George Washington Bridge.
-  [-74.0235, 40.76],
-  [-74.0191, 40.77],
-  [-74.014, 40.78],
-  [-74.01, 40.79],
-  [-74.003, 40.8],
-  [-73.995, 40.81],
-  [-73.985, 40.82],
-  [-73.977, 40.83],
-  [-73.968, 40.84],
-  [-73.964, 40.85],
-  [-73.957, 40.86],
-  [-73.95, 40.87],
-  [-73.944, 40.88],
-  [-73.942, 40.89],
-  [-73.938, 40.905],
-  [-73.933, 40.925],
-];
+const NJ_BOX = latLonBox([40.62, -74.16], [40.95, -73.92]);
 
-/** Land west of that shoreline. */
-const NJ_LAND = [
-  [[[-74.16, 40.63], ...NJ_SHORELINE, [-74.16, 40.935], [-74.16, 40.63]]],
-];
+/** The piece of a multipolygon containing a point; NJ's mainland, not an islet. */
+function componentAt(multi, [lon, lat]) {
+  const e = 1e-4;
+  const probe = [
+    [
+      [
+        [lon - e, lat - e],
+        [lon + e, lat - e],
+        [lon + e, lat + e],
+        [lon - e, lat + e],
+        [lon - e, lat - e],
+      ],
+    ],
+  ];
+  for (const polygon of multi) {
+    if (polygonClipping.intersection([polygon], probe).length > 0) return [polygon];
+  }
+  throw new Error("No landmass found at the New Jersey seed point");
+}
+
+const NJ_LAND = componentAt(
+  polygonClipping.difference(NJ_BOX, ...WATER.polygons.map(clean)),
+  [-74.05, 40.72],
+);
 
 /** Everything drawn, so far Brooklyn and Queens stay off the map. */
 const VIEWPORT = latLonBox([40.648, -74.102], [40.895, -73.892]);
