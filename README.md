@@ -44,8 +44,23 @@ Answers are matched loosely: case, accents and punctuation are ignored, `St.`
 and `Saint` are interchangeable, and a state's postal code (`WY`) counts when
 the state is the answer.
 
+## Pronunciation
+
+Names are read aloud by the browser's built-in speech synthesis — no audio files
+and nothing to download. With **Sound** on, the answer is spoken as soon as it is
+on screen, whether you got it right or were just corrected. Speaker buttons sit
+next to every word on screen and work whether the switch is on or off; a speaker
+never appears for an answer you have not been shown yet.
+
+Generic speech engines mispronounce a few place names, so `SPOKEN` in
+`src/data/us-states.ts` maps those to respellings (`Pierre` → `peer`). The table
+is deliberately short, since an override on a name the engine already says
+correctly makes it worse. Engines differ between devices, so if something sounds
+wrong on yours, that table is where to fix it.
+
 Mode (State→Capital, Capital→State, Mixed), theme (dark by default, switchable
-to light), the map toggle and cleared groups are all remembered locally.
+to light), the sound and map toggles, and cleared groups are all remembered
+locally.
 
 ## Map data
 

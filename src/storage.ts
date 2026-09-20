@@ -6,6 +6,7 @@ const KEYS = {
   direction: "statelearner:direction",
   theme: "statelearner:theme",
   map: "statelearner:map",
+  sound: "statelearner:sound",
   cleared: "statelearner:cleared",
 } as const;
 
@@ -48,6 +49,14 @@ export const settings = {
   },
   setTheme(value: Theme): void {
     write(KEYS.theme, value);
+  },
+
+  /** Governs auto-play only; the speaker buttons work either way. */
+  soundEnabled(): boolean {
+    return read(KEYS.sound) !== "off";
+  },
+  setSoundEnabled(value: boolean): void {
+    write(KEYS.sound, value ? "on" : "off");
   },
 
   mapEnabled(): boolean {

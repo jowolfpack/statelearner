@@ -7,6 +7,10 @@ export interface Card {
   frontAliases?: string[];
   /** Extra spellings accepted when `back` is the answer. */
   backAliases?: string[];
+  /** Respelling fed to the speech engine when `front` is mispronounced. */
+  frontSpoken?: string;
+  /** Respelling fed to the speech engine when `back` is mispronounced. */
+  backSpoken?: string;
 }
 
 /** A small batch of cards that is studied and drilled as a unit. */

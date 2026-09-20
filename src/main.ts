@@ -5,6 +5,7 @@ import { GroupSession } from "./group-session";
 import { UsMap } from "./map";
 import { progress, settings, type Theme } from "./storage";
 import { applyTheme, initTheme } from "./theme";
+import { createSpeaker } from "./speech";
 import type { Direction } from "./quiz";
 
 function el<T extends HTMLElement>(id: string): T {
@@ -19,6 +20,8 @@ const ui = {
   direction: el<HTMLSelectElement>("direction"),
   theme: el<HTMLSelectElement>("theme"),
   mapToggle: el<HTMLInputElement>("map-toggle"),
+  soundToggle: el<HTMLInputElement>("sound-toggle"),
+  soundToggleLabel: el("sound-toggle-label"),
   mapSlot: el("map-slot"),
 
   picker: el("picker"),
@@ -29,8 +32,10 @@ const ui = {
   studyPosition: el("study-position"),
   studyFrontLabel: el("study-front-label"),
   studyFront: el("study-front"),
+  studyFrontRow: el("study-front-row"),
   studyBackLabel: el("study-back-label"),
   studyBack: el("study-back"),
+  studyBackRow: el("study-back-row"),
   studyNext: el<HTMLButtonElement>("study-next"),
   studySkip: el<HTMLButtonElement>("study-skip"),
 
@@ -40,6 +45,7 @@ const ui = {
   attempt: el("attempt"),
   promptLabel: el("prompt-label"),
   prompt: el("prompt"),
+  promptRow: el("prompt-row"),
   form: el<HTMLFormElement>("answer-form"),
   answer: el<HTMLInputElement>("answer"),
   submit: el<HTMLButtonElement>("submit"),
@@ -55,9 +61,37 @@ const ui = {
 const deck = usStatesDeck;
 const everyState = wholeDeckGroup(deck);
 const map = new UsMap();
+const speech = createSpeaker();
 ui.mapSlot.append(map.element);
 
 let session: GroupSession | null = null;
+
+const SPEAKER_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5H4z"/>' +
+  '<path d="M15.5 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+/**
+ * Attaches a speaker button to `container`, replacing any previous one.
+ *
+ * Passing null removes it. That is how the spoiler rule is enforced: a speaker
+ * is only ever mounted for text already on screen, so it can never read out an
+ * answer the user has not been shown -- the same trap the map avoids.
+ */
+function mountSpeaker(container: HTMLElement, spoken: string | null, label: string): void {
+  container.querySelector(".speak")?.remove();
+  if (!speech.supported || spoken === null || spoken === "") return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "speak";
+  button.title = `Hear "${label}"`;
+  button.setAttribute("aria-label", `Hear "${label}"`);
+  button.innerHTML = SPEAKER_ICON;
+  button.addEventListener("click", () => speech.speak(spoken));
+  container.append(button);
+}
 
 // -- Rendering -----------------------------------------------------------
 
@@ -132,6 +166,8 @@ function renderStudy(active: GroupSession): void {
   ui.studyFront.textContent = card.front;
   ui.studyBackLabel.textContent = deck.backLabel;
   ui.studyBack.textContent = card.back;
+  mountSpeaker(ui.studyFrontRow, card.frontSpoken ?? card.front, card.front);
+  mountSpeaker(ui.studyBackRow, card.backSpoken ?? card.back, card.back);
   ui.studyNext.textContent = last ? "Start drill" : "Next";
   ui.studySkip.hidden = last;
 }
@@ -153,16 +189,23 @@ function renderDrill(active: GroupSession): void {
   ui.giveUp.hidden = result !== null;
 
   if (result === null) {
-    ui.feedback.textContent = "";
-    ui.feedback.className = "feedback";
+    ui.feedback.replaceChildren();
+    ui.feedback.className = "feedback spoken";
     ui.answer.value = "";
   } else if (result.correct) {
-    ui.feedback.textContent = "Correct";
-    ui.feedback.className = "feedback ok";
+    ui.feedback.replaceChildren(document.createTextNode("Correct"));
+    ui.feedback.className = "feedback spoken ok";
   } else {
-    ui.feedback.textContent = `${result.answer} — back to the start`;
-    ui.feedback.className = "feedback bad";
+    ui.feedback.replaceChildren(
+      document.createTextNode(`${result.answer} — back to the start`),
+    );
+    ui.feedback.className = "feedback spoken bad";
   }
+
+  // The prompt is on screen, so it is always safe to offer; the answer only
+  // once it has been revealed.
+  mountSpeaker(ui.promptRow, question.promptSpoken, question.prompt);
+  mountSpeaker(ui.feedback, result === null ? null : question.answerSpoken, question.answer);
 
   ui.answer.focus();
 }
@@ -215,6 +258,7 @@ function startGroup(group: Group, studyFirst = false): void {
 }
 
 function leaveGroup(): void {
+  speech.cancel();
   session = null;
   render();
 }
@@ -234,17 +278,32 @@ ui.studySkip.addEventListener("click", () => {
   render();
 });
 
+/** Reads the answer out once it is on screen, whether right or wrong. */
+function announce(answerSpoken: string): void {
+  if (settings.soundEnabled()) speech.speak(answerSpoken);
+}
+
 ui.form.addEventListener("submit", (event) => {
   event.preventDefault();
   if (session === null) return;
-  if (session.lastResult === null) session.submit(ui.answer.value);
-  else session.next();
+
+  if (session.lastResult === null) {
+    const question = session.question;
+    session.submit(ui.answer.value);
+    if (question !== null && session.lastResult !== null) announce(question.answerSpoken);
+  } else {
+    session.next();
+  }
+
   if (session.phase === "cleared") progress.markCleared(session.group.id);
   render();
 });
 
 ui.giveUp.addEventListener("click", () => {
-  session?.reveal();
+  if (session === null) return;
+  const question = session.question;
+  session.reveal();
+  if (question !== null && session.lastResult !== null) announce(question.answerSpoken);
   render();
 });
 
@@ -270,6 +329,11 @@ ui.theme.addEventListener("change", () => {
   applyTheme(theme);
 });
 
+ui.soundToggle.addEventListener("change", () => {
+  settings.setSoundEnabled(ui.soundToggle.checked);
+  if (!ui.soundToggle.checked) speech.cancel();
+});
+
 ui.mapToggle.addEventListener("change", () => {
   settings.setMapEnabled(ui.mapToggle.checked);
   renderMap();
@@ -285,4 +349,7 @@ ui.resetProgress.addEventListener("click", () => {
 ui.theme.value = initTheme();
 ui.direction.value = settings.direction();
 ui.mapToggle.checked = settings.mapEnabled();
+ui.soundToggle.checked = settings.soundEnabled();
+// No point offering a switch for something this browser cannot do.
+ui.soundToggleLabel.hidden = !speech.supported;
 render();

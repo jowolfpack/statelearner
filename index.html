@@ -27,6 +27,10 @@
               <option value="light">Light</option>
             </select>
           </label>
+          <label class="toggle" id="sound-toggle-label">
+            <input type="checkbox" id="sound-toggle" checked />
+            Sound
+          </label>
           <label class="toggle">
             <input type="checkbox" id="map-toggle" checked />
             Map
@@ -46,9 +50,9 @@
       <section class="card" id="study" hidden>
         <p class="meta"><span id="study-position"></span><span>Study</span></p>
         <p class="prompt-label" id="study-front-label"></p>
-        <p class="prompt" id="study-front"></p>
+        <p class="spoken" id="study-front-row"><span class="prompt" id="study-front"></span></p>
         <p class="prompt-label" id="study-back-label"></p>
-        <p class="answer" id="study-back"></p>
+        <p class="spoken" id="study-back-row"><span class="answer" id="study-back"></span></p>
         <div class="actions">
           <button type="button" id="study-next">Next</button>
           <button type="button" class="secondary" id="study-skip">Start drill</button>
@@ -63,7 +67,7 @@
         <p class="meta"><span id="drill-position"></span><span id="attempt"></span></p>
 
         <p class="prompt-label" id="prompt-label"></p>
-        <p class="prompt" id="prompt"></p>
+        <p class="spoken" id="prompt-row"><span class="prompt" id="prompt"></span></p>
 
         <form id="answer-form" autocomplete="off">
           <input
@@ -77,7 +81,7 @@
           <button type="submit" id="submit">Check</button>
         </form>
 
-        <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+        <p class="feedback spoken" id="feedback" role="status" aria-live="polite"></p>
         <button type="button" class="link" id="give-up">I don't know</button>
       </section>
 

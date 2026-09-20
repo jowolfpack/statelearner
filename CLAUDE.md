@@ -83,6 +83,24 @@ The map must never give the answer away: `highlightedCardId()` in `main.ts`
 marks the state only when the state is the *prompt*, or after the question has
 been graded.
 
+**Speech (`src/speech.ts`)** — the only place audio happens. `createSpeaker()`
+returns a `Speaker` backed by `window.speechSynthesis`, or a silent no-op one
+where the API is missing; callers check `supported` to decide whether to render
+controls at all. Every call is wrapped in try/catch — **audio must never break
+the drill**. Swapping to recorded files later means reimplementing this
+interface and nothing else.
+
+Pronunciation fixes are data, not code: `SPOKEN` in `src/data/us-states.ts`
+respells the handful of names generic engines get wrong, which reach the UI as
+`frontSpoken`/`backSpoken` on the card and `promptSpoken`/`answerSpoken` on the
+`Question`. Keep the table short — an override on a name the engine already
+handles makes it worse, and engines differ between devices.
+
+`mountSpeaker()` in `main.ts` enforces the same spoiler rule as the map: **a
+speaker button may only ever speak text already on screen**, so the answer gets
+one only once the question has been graded. The Sound switch governs auto-play
+only; the buttons work regardless.
+
 **Persistence (`src/storage.ts`)** — direction, theme, map on/off and the set of
 cleared group ids, all wrapped in try/catch because `localStorage` throws in some
 privacy modes. Settings are never worth a crash.

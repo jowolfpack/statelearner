@@ -28,6 +28,24 @@ const DIVISIONS: ReadonlyArray<readonly [string, string, string[]]> = [
   ["pacific", "Pacific", ["AK", "CA", "HI", "OR", "WA"]],
 ];
 
+/**
+ * Respellings for names a generic English speech engine gets wrong, keyed by
+ * card id. Deliberately short: an override on a name the engine already says
+ * correctly makes it worse, and engines differ between devices. Add one only
+ * after hearing the name come out wrong.
+ */
+const SPOKEN: Record<string, { front?: string; back?: string }> = {
+  sd: { back: "peer" }, // Pierre, not the French name
+  id: { back: "boycee" }, // Boise: BOY-see, not "boyz"
+  nh: { back: "conkerd" }, // Concord: CONK-erd
+  vt: { back: "mont peelyer" }, // Montpelier: not the French Montpellier
+  mt: { back: "hellena" }, // Helena: stress on the first syllable
+  ia: { back: "duh moyn" }, // Des Moines
+  ak: { back: "joono" }, // Juneau
+  wy: { back: "shy ann" }, // Cheyenne
+  la: { back: "batton roozh" }, // Baton Rouge
+};
+
 const groups: Group[] = DIVISIONS.map(([id, name, codes]) => ({
   id,
   name,
@@ -39,12 +57,18 @@ export const usStatesDeck: Deck = {
   name: "US States & Capitals",
   frontLabel: "State",
   backLabel: "Capital",
-  cards: STATES.map(([state, capital, code]) => ({
-    id: code.toLowerCase(),
-    front: state,
-    back: capital,
-    // Typing the postal code counts when the state is the answer.
-    frontAliases: [code],
-  })),
+  cards: STATES.map(([state, capital, code]) => {
+    const id = code.toLowerCase();
+    const spoken = SPOKEN[id];
+    return {
+      id,
+      front: state,
+      back: capital,
+      // Typing the postal code counts when the state is the answer.
+      frontAliases: [code],
+      ...(spoken?.front === undefined ? {} : { frontSpoken: spoken.front }),
+      ...(spoken?.back === undefined ? {} : { backSpoken: spoken.back }),
+    };
+  }),
   groups,
 };

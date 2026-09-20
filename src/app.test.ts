@@ -8,7 +8,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usStatesDeck } from "./data/us-states";
 
 // Not import.meta.url: under the jsdom environment that is an http URL.
@@ -24,8 +24,29 @@ function visible(id: string): boolean {
   return !byId(id).hidden;
 }
 
+/** Everything the app has spoken since the last boot. */
+let spoken: string[] = [];
+
+/** jsdom has no speech synthesis, so record what would have been said. */
+function installSynth(): void {
+  spoken = [];
+  vi.stubGlobal("speechSynthesis", {
+    speak: (u: { text: string }) => spoken.push(u.text),
+    cancel: () => {},
+    getVoices: () => [],
+    addEventListener: () => {},
+  });
+  vi.stubGlobal(
+    "SpeechSynthesisUtterance",
+    class {
+      constructor(public text: string) {}
+    },
+  );
+}
+
 /** Fresh DOM plus a fresh module instance, since main.ts runs on import. */
 async function boot(): Promise<void> {
+  installSynth();
   document.documentElement.innerHTML = html;
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
@@ -84,6 +105,10 @@ function openFirstGroupForStudy(): void {
 
 beforeEach(async () => {
   await boot();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("boot", () => {
@@ -279,5 +304,118 @@ describe("all 50 states", () => {
     expect(rows).toHaveLength(9);
     const total = rows.reduce((sum, el) => sum + Number(el.textContent?.split(" ")[0] ?? 0), 0);
     expect(total).toBe(50);
+  });
+});
+
+describe("pronunciation audio", () => {
+  const speakers = () => document.querySelectorAll(".speak");
+
+  /** What the engine should actually be handed: the respelling, or the name. */
+  function spokenCapitalFor(state: string): string {
+    const card = usStatesDeck.cards.find((c) => c.front === state);
+    if (card === undefined) throw new Error(`No card for "${state}"`);
+    return card.backSpoken ?? card.back;
+  }
+
+  function setDirection(value: string): void {
+    const select = byId<HTMLSelectElement>("direction");
+    select.value = value;
+    select.dispatchEvent(new Event("change"));
+  }
+
+  it("offers a Sound switch, on by default", () => {
+    expect(byId<HTMLInputElement>("sound-toggle").checked).toBe(true);
+    expect(byId("sound-toggle-label").hidden).toBe(false);
+  });
+
+  it("speaks the answer you got right", () => {
+    openFirstGroupAndDrill();
+    const state = byId("prompt").textContent ?? "";
+    answer(capitalFor(state));
+    expect(spoken).toEqual([spokenCapitalFor(state)]);
+  });
+
+  it("speaks the correct answer when you get one wrong", () => {
+    openFirstGroupAndDrill();
+    const state = byId("prompt").textContent ?? "";
+    answer("completely wrong");
+    expect(spoken).toEqual([spokenCapitalFor(state)]);
+  });
+
+  it("speaks the answer when you give up", () => {
+    openFirstGroupAndDrill();
+    const state = byId("prompt").textContent ?? "";
+    byId<HTMLButtonElement>("give-up").click();
+    expect(spoken).toEqual([spokenCapitalFor(state)]);
+  });
+
+  it("stays quiet when the switch is off, but the buttons still work", () => {
+    const toggle = byId<HTMLInputElement>("sound-toggle");
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+
+    openFirstGroupAndDrill();
+    const prompt = byId("prompt").textContent ?? "";
+    answer(capitalFor(prompt));
+    expect(spoken).toEqual([]);
+
+    document.querySelector<HTMLButtonElement>("#prompt-row .speak")?.click();
+    expect(spoken).toEqual([prompt]);
+  });
+
+  it("offers a speaker for the prompt and, once graded, the answer", () => {
+    openFirstGroupAndDrill();
+    expect(document.querySelector("#prompt-row .speak")).not.toBeNull();
+    expect(document.querySelector("#feedback .speak")).toBeNull();
+
+    answer("completely wrong");
+    expect(document.querySelector("#feedback .speak")).not.toBeNull();
+  });
+
+  it("never offers a speaker that would give the answer away", () => {
+    // Capital -> State: the state is the answer, so nothing may say it aloud
+    // until the question has been graded.
+    setDirection("back-to-front");
+    openFirstGroupAndDrill();
+
+    const prompt = byId("prompt").textContent ?? "";
+    expect(byId("prompt-label").textContent).toBe("Capital");
+    expect(speakers()).toHaveLength(1);
+    document.querySelector<HTMLButtonElement>("#prompt-row .speak")?.click();
+    expect(spoken).toEqual([prompt]);
+
+    answer("wrong");
+    expect(document.querySelector("#feedback .speak")).not.toBeNull();
+  });
+
+  it("gives both sides a speaker during study", () => {
+    openFirstGroupForStudy();
+    expect(document.querySelector("#study-front-row .speak")).not.toBeNull();
+    expect(document.querySelector("#study-back-row .speak")).not.toBeNull();
+  });
+
+  it("speaks the respelling for a name the engine mangles", () => {
+    // Walk the study pass to New Hampshire, whose capital Concord a generic
+    // engine reads as "CON-cord".
+    openFirstGroupForStudy();
+    for (let i = 0; i < 6 && byId("study-front").textContent !== "New Hampshire"; i++) {
+      byId<HTMLButtonElement>("study-next").click();
+    }
+    expect(byId("study-front").textContent).toBe("New Hampshire");
+    expect(byId("study-back").textContent).toBe("Concord");
+
+    document.querySelector<HTMLButtonElement>("#study-back-row .speak")?.click();
+    expect(spoken).toEqual(["conkerd"]);
+  });
+
+  it("hides the switch and every speaker where speech is unsupported", async () => {
+    vi.stubGlobal("speechSynthesis", undefined);
+    document.documentElement.innerHTML = html;
+    vi.resetModules();
+    await import("./main");
+
+    expect(byId("sound-toggle-label").hidden).toBe(true);
+    openFirstGroupAndDrill();
+    expect(speakers()).toHaveLength(0);
   });
 });

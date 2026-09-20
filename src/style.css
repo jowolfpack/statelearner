@@ -257,15 +257,23 @@ select {
   color: var(--muted);
 }
 
-.prompt {
+.spoken:has(.prompt) {
   margin: 4px 0 24px;
+}
+
+.prompt {
+  margin: 0;
   font-size: clamp(1.6rem, 6.5vw, 2.25rem);
   font-weight: 600;
   line-height: 1.15;
 }
 
-.answer {
+.spoken:has(.answer) {
   margin: 4px 0 24px;
+}
+
+.answer {
+  margin: 0;
   font-size: clamp(1.4rem, 5.5vw, 1.9rem);
   font-weight: 600;
   line-height: 1.15;
@@ -318,6 +326,40 @@ button.secondary {
   font-size: 0.85rem;
   padding: 10px 0 0;
   text-decoration: underline;
+}
+
+/* -- Speaker buttons --------------------------------------------------- */
+
+.spoken {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.speak {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.speak svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.speak:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  filter: none;
 }
 
 .feedback {

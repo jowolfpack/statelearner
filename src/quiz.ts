@@ -12,6 +12,9 @@ export interface Question {
   answer: string;
   /** Every spelling that counts as correct. */
   accepted: string[];
+  /** What to hand the speech engine; the written form unless overridden. */
+  promptSpoken: string;
+  answerSpoken: string;
 }
 
 function askBack(deck: Deck, card: Card): Question {
@@ -22,6 +25,8 @@ function askBack(deck: Deck, card: Card): Question {
     answerLabel: deck.backLabel,
     answer: card.back,
     accepted: [card.back, ...(card.backAliases ?? [])],
+    promptSpoken: card.frontSpoken ?? card.front,
+    answerSpoken: card.backSpoken ?? card.back,
   };
 }
 
@@ -33,6 +38,8 @@ function askFront(deck: Deck, card: Card): Question {
     answerLabel: deck.frontLabel,
     answer: card.front,
     accepted: [card.front, ...(card.frontAliases ?? [])],
+    promptSpoken: card.backSpoken ?? card.back,
+    answerSpoken: card.frontSpoken ?? card.front,
   };
 }
 
