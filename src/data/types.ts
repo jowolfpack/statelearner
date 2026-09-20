@@ -37,3 +37,16 @@ export function cardsOf(deck: Deck, group: Group): Card[] {
     return card;
   });
 }
+
+/**
+ * One group holding every card in the deck, for a run at the whole thing. Kept
+ * out of `deck.groups` so the real groups still partition the cards exactly
+ * once.
+ */
+export function wholeDeckGroup(deck: Deck): Group {
+  return {
+    id: "all",
+    name: `All ${deck.cards.length} ${deck.frontLabel}s`,
+    cardIds: deck.cards.map((card) => card.id),
+  };
+}

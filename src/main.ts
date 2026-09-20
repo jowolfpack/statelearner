@@ -1,6 +1,6 @@
 import "./style.css";
 import { usStatesDeck } from "./data/us-states";
-import type { Group } from "./data/types";
+import { wholeDeckGroup, type Group } from "./data/types";
 import { GroupSession } from "./group-session";
 import { UsMap } from "./map";
 import { progress, settings, type Theme } from "./storage";
@@ -53,6 +53,7 @@ const ui = {
 };
 
 const deck = usStatesDeck;
+const everyState = wholeDeckGroup(deck);
 const map = new UsMap();
 ui.mapSlot.append(map.element);
 
@@ -78,41 +79,46 @@ function render(): void {
   renderMap();
 }
 
+function groupRow(group: Group, cleared: Set<string>): HTMLLIElement {
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "group";
+  if (cleared.has(group.id)) open.classList.add("is-cleared");
+  open.addEventListener("click", () => startGroup(group));
+
+  const name = document.createElement("span");
+  name.className = "group-name";
+  name.textContent = group.name;
+
+  const count = document.createElement("span");
+  count.className = "group-count";
+  count.textContent = cleared.has(group.id)
+    ? `${group.cardIds.length} · cleared`
+    : `${group.cardIds.length}`;
+
+  open.append(name, count);
+
+  // Study is the opt-in path, so it gets its own quieter control.
+  const study = document.createElement("button");
+  study.type = "button";
+  study.className = "group-study";
+  study.textContent = "Study";
+  study.title = `Read through ${group.name} with the capitals shown, then drill`;
+  study.addEventListener("click", () => startGroup(group, true));
+
+  const item = document.createElement("li");
+  item.className = "group-row";
+  item.append(open, study);
+  return item;
+}
+
 function renderPicker(): void {
   const cleared = progress.cleared();
+  const everything = groupRow(everyState, cleared);
+  everything.classList.add("is-everything");
   ui.groupList.replaceChildren(
-    ...deck.groups.map((group) => {
-      const open = document.createElement("button");
-      open.type = "button";
-      open.className = "group";
-      if (cleared.has(group.id)) open.classList.add("is-cleared");
-      open.addEventListener("click", () => startGroup(group));
-
-      const name = document.createElement("span");
-      name.className = "group-name";
-      name.textContent = group.name;
-
-      const count = document.createElement("span");
-      count.className = "group-count";
-      count.textContent = cleared.has(group.id)
-        ? `${group.cardIds.length} · cleared`
-        : `${group.cardIds.length}`;
-
-      open.append(name, count);
-
-      // Study is the opt-in path, so it gets its own quieter control.
-      const study = document.createElement("button");
-      study.type = "button";
-      study.className = "group-study";
-      study.textContent = "Study";
-      study.title = `Read through ${group.name} with the capitals shown, then drill`;
-      study.addEventListener("click", () => startGroup(group, true));
-
-      const item = document.createElement("li");
-      item.className = "group-row";
-      item.append(open, study);
-      return item;
-    }),
+    ...deck.groups.map((group) => groupRow(group, cleared)),
+    everything,
   );
 }
 
@@ -161,8 +167,15 @@ function renderDrill(active: GroupSession): void {
   ui.answer.focus();
 }
 
+/** The division after this one, or undefined for the last one or the all-states run. */
+function divisionAfter(current: Group): Group | undefined {
+  const index = deck.groups.findIndex((group) => group.id === current.id);
+  return index === -1 ? undefined : deck.groups[index + 1];
+}
+
 function renderCleared(active: GroupSession): void {
   ui.progressBar.style.width = "100%";
+  ui.nextGroup.hidden = divisionAfter(active.group) === undefined;
   ui.clearedDetail.textContent =
     active.attempt === 1
       ? `${active.size} of ${active.size}, first run, no mistakes.`
@@ -237,8 +250,7 @@ ui.giveUp.addEventListener("click", () => {
 
 ui.nextGroup.addEventListener("click", () => {
   if (session === null) return;
-  const current = session.group.id;
-  const next = deck.groups[deck.groups.findIndex((group) => group.id === current) + 1];
+  const next = divisionAfter(session.group);
   if (next === undefined) leaveGroup();
   else startGroup(next);
 });

@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { usStatesDeck } from "./data/us-states";
 
 // Not import.meta.url: under the jsdom environment that is an http URL.
 const html = readFileSync(resolve(process.cwd(), "index.html"), "utf-8");
@@ -49,6 +50,25 @@ function activeStateId(): string | null {
   return document.querySelector(".us-map-state.is-active")?.getAttribute("d") ?? null;
 }
 
+function capitalFor(state: string): string {
+  const card = usStatesDeck.cards.find((c) => c.front === state);
+  if (card === undefined) throw new Error(`No card for prompt "${state}"`);
+  return card.back;
+}
+
+/** Answers the question on screen correctly and moves on. */
+function answerCorrectly(): void {
+  answer(capitalFor(byId("prompt").textContent ?? ""));
+  advance();
+}
+
+/** Answers correctly until the group is cleared. */
+function clearGroup(limit = 120): void {
+  let guard = 0;
+  while (!visible("cleared") && guard++ < limit) answerCorrectly();
+  if (!visible("cleared")) throw new Error("group never cleared");
+}
+
 /** Opens the first group. Groups now start in the drill. */
 function openFirstGroupAndDrill(): void {
   document.querySelectorAll<HTMLButtonElement>(".group")[0]?.click();
@@ -64,9 +84,10 @@ beforeEach(async () => {
 });
 
 describe("boot", () => {
-  it("starts on the group picker with all nine divisions", () => {
+  it("starts on the group picker with all nine divisions plus a whole-deck run", () => {
     expect(visible("picker")).toBe(true);
-    expect(document.querySelectorAll(".group")).toHaveLength(9);
+    expect(document.querySelectorAll(".group")).toHaveLength(10);
+    expect(document.querySelectorAll(".group-row.is-everything")).toHaveLength(1);
     expect(byId("title").textContent).toBe("StateLearner");
   });
 
@@ -84,7 +105,7 @@ describe("study pass", () => {
   });
 
   it("offers a Study button per group", () => {
-    expect(document.querySelectorAll(".group-study")).toHaveLength(9);
+    expect(document.querySelectorAll(".group-study")).toHaveLength(10);
   });
 
   it("opens a group into study, showing both sides", () => {
@@ -122,35 +143,15 @@ describe("drill", () => {
 
   it("advances on a correct answer", () => {
     openFirstGroupAndDrill();
-    // The prompt is a state; look its capital up from the rendered deck.
-    const capitals: Record<string, string> = {
-      Connecticut: "Hartford",
-      Maine: "Augusta",
-      Massachusetts: "Boston",
-      "New Hampshire": "Concord",
-      "Rhode Island": "Providence",
-      Vermont: "Montpelier",
-    };
-    answer(capitals[byId("prompt").textContent ?? ""] ?? "");
+    answer(capitalFor(byId("prompt").textContent ?? ""));
     expect(byId("feedback").className).toContain("ok");
     advance();
     expect(byId("drill-position").textContent).toBe("2 of 6");
   });
 
   it("clears the group only after an unbroken run, and remembers it", () => {
-    const capitals: Record<string, string> = {
-      Connecticut: "Hartford",
-      Maine: "Augusta",
-      Massachusetts: "Boston",
-      "New Hampshire": "Concord",
-      "Rhode Island": "Providence",
-      Vermont: "Montpelier",
-    };
     openFirstGroupAndDrill();
-    for (let i = 0; i < 6; i++) {
-      answer(capitals[byId("prompt").textContent ?? ""] ?? "");
-      advance();
-    }
+    clearGroup();
     expect(visible("cleared")).toBe(true);
     expect(byId("cleared-detail").textContent).toMatch(/first run/);
 
@@ -199,5 +200,50 @@ describe("theme", () => {
     select.dispatchEvent(new Event("change"));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     expect(localStorage.getItem("statelearner:theme")).toBe("system");
+  });
+});
+
+describe("all 50 states", () => {
+  /** The whole-deck row is rendered last, after the nine divisions. */
+  function openEverything(): void {
+    document.querySelector<HTMLButtonElement>(".group-row.is-everything .group")?.click();
+  }
+
+  it("is offered as its own run covering every state", () => {
+    const row = document.querySelector(".group-row.is-everything");
+    expect(row?.textContent).toContain("All 50 States");
+    expect(row?.textContent).toContain("50");
+  });
+
+  it("drills all 50 under the same restart rule", () => {
+    openEverything();
+    expect(visible("drill")).toBe(true);
+    expect(byId("title").textContent).toBe("All 50 States");
+    expect(byId("drill-position").textContent).toBe("1 of 50");
+
+    answer("completely wrong");
+    advance();
+    expect(byId("attempt").textContent).toBe("Attempt 2");
+    expect(byId("drill-position").textContent).toBe("1 of 50");
+  });
+
+  it("offers no next group once cleared, having no division after it", () => {
+    openEverything();
+    clearGroup();
+    expect(visible("cleared")).toBe(true);
+    expect(byId("next-group").hidden).toBe(true);
+  });
+
+  it("still offers a next group after clearing a division", () => {
+    openFirstGroupAndDrill();
+    clearGroup();
+    expect(byId("next-group").hidden).toBe(false);
+  });
+
+  it("leaves the nine divisions partitioning the states exactly once", () => {
+    const rows = [...document.querySelectorAll(".group-row:not(.is-everything) .group-count")];
+    expect(rows).toHaveLength(9);
+    const total = rows.reduce((sum, el) => sum + Number(el.textContent?.split(" ")[0] ?? 0), 0);
+    expect(total).toBe(50);
   });
 });

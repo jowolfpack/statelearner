@@ -200,6 +200,13 @@ select {
   color: var(--ok);
 }
 
+/* The whole-deck run sits apart from the nine divisions. */
+.group-row.is-everything {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .group-study {
   flex: none;
   background: transparent;

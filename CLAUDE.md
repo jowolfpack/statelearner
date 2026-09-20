@@ -49,6 +49,13 @@ worth testing. A group has two phases:
 Picking a group goes straight to the drill; that is the default and the point of
 the app.
 
+The picker also offers a whole-deck run built by `wholeDeckGroup()` in
+`src/data/types.ts`. It is deliberately **not** in `deck.groups`, so the nine
+divisions still partition the cards exactly once — code that walks `deck.groups`
+(the "next group" button, the coverage test) keeps working unchanged. Anything
+iterating groups must not assume the current session's group is one of them;
+`divisionAfter()` in `main.ts` returns undefined for it.
+
 This mechanic is deliberate and load-bearing. There is intentionally no restart
 limit, no way back to Study once the drill starts, and reshuffling on every
 attempt is required so the user learns pairs rather than an order. Do not soften
