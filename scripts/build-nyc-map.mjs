@@ -175,6 +175,38 @@ const OUTER = [
   ["park-slope", [40.655, -73.988], [40.682, -73.96]],
 ];
 
+/**
+ * The New Jersey waterfront, south to north. Municipal boundaries there run out
+ * into the Hudson to the state line, which is how Jersey City swallowed Ellis
+ * and Liberty Islands and painted over Hoboken's waterfront. NYC Open Data
+ * stops at the state border, so this shoreline is authored; everything inland
+ * of it is the real municipal boundary.
+ */
+const NJ_SHORELINE = [
+  [-74.075, 40.66],
+  [-74.068, 40.672],
+  [-74.062, 40.685],
+  [-74.056, 40.695],
+  [-74.052, 40.702],
+  [-74.0465, 40.706],
+  [-74.043, 40.7105],
+  [-74.039, 40.7135],
+  [-74.0335, 40.7165],
+  [-74.03, 40.722],
+  [-74.027, 40.73],
+  [-74.0255, 40.736],
+  [-74.024, 40.745],
+  [-74.0235, 40.752],
+  [-74.0215, 40.76],
+  [-74.019, 40.77],
+  [-74.016, 40.782],
+];
+
+/** Land west of that shoreline. */
+const NJ_LAND = [
+  [[[-74.09, 40.658], ...NJ_SHORELINE, [-74.016, 40.79], [-74.09, 40.79], [-74.09, 40.658]]],
+];
+
 /** Everything drawn, so far Brooklyn and Queens stay off the map. */
 const VIEWPORT = latLonBox([40.648, -74.072], [40.895, -73.892]);
 
@@ -260,9 +292,21 @@ const nycLand = unionWithin(
   [...inBorough("Manhattan"), ...inBorough("Brooklyn"), ...inBorough("Queens"), ...inBorough("Bronx")],
   VIEWPORT,
 );
-const njPieces = ["hoboken", "jersey-city"].map((id) =>
-  polygonClipping.intersection(clean(NJ.polygons[id]), VIEWPORT),
+// Trim each municipality to land, then keep Hoboken whole: the two boundaries
+// overlap out in the river, and Jersey City is drawn second.
+const hobokenLand = polygonClipping.intersection(
+  clean(NJ.polygons.hoboken),
+  VIEWPORT,
+  NJ_LAND,
 );
+const jerseyLand = polygonClipping.difference(
+  polygonClipping.intersection(clean(NJ.polygons["jersey-city"]), VIEWPORT, NJ_LAND),
+  hobokenLand,
+);
+const njPieces = [hobokenLand, jerseyLand];
+if (polygonClipping.intersection(hobokenLand, jerseyLand).length > 0) {
+  throw new Error("Hoboken and Jersey City still overlap");
+}
 const silhouette = polygonClipping.union(nycLand, ...njPieces);
 
 const park = polygonClipping.intersection(
