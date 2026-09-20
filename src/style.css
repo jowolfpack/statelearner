@@ -13,8 +13,9 @@
   --ok: #57c48a;
   --bad: #f2837b;
   --map-land: #39424e;
-  --map-quiet: #23282f;
+  --map-quiet: #2a3139;
   --map-stroke: #14161a;
+  --map-water: #0c1720;
   color-scheme: dark;
 }
 
@@ -30,6 +31,7 @@
   --map-land: #dbe1e9;
   --map-quiet: #edf0f3;
   --map-stroke: #ffffff;
+  --map-water: #98c3e0;
   color-scheme: light;
 }
 
@@ -167,6 +169,11 @@ select {
   display: block;
   width: 100%;
   height: auto;
+  /* Land is drawn on top of this, so anything left over is water. Kept well
+     away from --accent in both themes: the highlighted area is blue too, and
+     it must never read as sea. */
+  background: var(--map-water);
+  border-radius: 8px;
 }
 
 .us-map-state {
